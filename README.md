@@ -1,7 +1,3 @@
-Certainly! Here's a comprehensive `README.md` for your [Stickman-Massacre](https://github.com/safa-jsk/Stickman-Massacre) project:
-
----
-
 # Stickman Massacre
 
 **Stickman Massacre** is a 3D stickman action game built with Python and OpenGL. In this game, you control a stickman character navigating a grid-based arena, battling enemies with melee attacks. The game features dynamic camera controls, responsive player movement, and scalable enemy models.
