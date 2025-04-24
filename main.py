@@ -26,7 +26,7 @@ player_pos = [0, 0, 0]
 player_angle = 0
 player_speed = 10
 player_turn_speed = 5
-player_life = 5
+player_life = 10
 player_score = 0
 
 # Light Attack
@@ -38,6 +38,11 @@ light_attack_speed = 2
 left_arm_angle = 0
 is_strong_attacking = False
 strong_attack_speed = 2
+
+# Enemy-related variables
+enemy_list = []
+enemy_speed = 5
+enemy_count = 5
 
 def draw_text(x, y, text, font = GLUT_BITMAP_HELVETICA_18):
     glColor3f(1, 1, 1)
@@ -157,6 +162,7 @@ def draw_player():
     # Left Arm
     glTranslatef(20, 0, -30)   # At (35, -60, 80)
     glRotatef(90, 1, 0, 0)
+    
     glPushMatrix()
     glRotatef(left_arm_angle, 0, 1, 0)  # Apply attack rotation
     glColor3f(254/255, 223/255, 188/255)
@@ -185,6 +191,57 @@ def strong_attack():
     if not mode_over and not is_strong_attacking:
         is_strong_attacking = True
         left_arm_angle = 0
+
+def draw_enemy(x, y, z):
+    glPushMatrix()
+    
+    # Position and orientation
+    glTranslatef(x, y, z)  # Enemy position
+    glColor3f(1.0, 0.0, 0.0)
+
+    # Enemy half the size of the player
+    
+    # Right Leg
+    glTranslatef(10, 0, 0)      # At (10, 0, 0)
+    gluCylinder(gluNewQuadric(), 5, 5, 40, 10, 10) # quadric, base radius, top radius, height, slices, stacks
+    
+    # Left Leg
+    glTranslatef(-20, 0, 0)     # At (-10, 0, 0)
+    gluCylinder(gluNewQuadric(), 5, 5, 40, 10, 10) # quadric, base radius, top radius, height, slices, stacks
+    
+    # Body
+    glTranslatef(10, 0, 25+10)  # At (0, 0, 35)
+    gluCylinder(gluNewQuadric(), 10, 10, 30, 10, 10) # quadric, base radius, top radius, height, slices, stacks
+    
+    # Head
+    glTranslatef(0, 0, 35)      # At (0, 0, 70)
+    gluSphere(gluNewQuadric(), 10, 10, 10) # radius, slices, stacks
+    
+    # Left Arm
+    glTranslatef(10, 0, -15)   # At (10, 0, 40)
+    glRotatef(90, 0, 1, 0)
+    gluCylinder(gluNewQuadric(), 4, 4, 20, 10, 10) # quadric, base radius, top radius, height, slices, stacks
+    
+    # Right Arm
+    glRotatef(-90, 0, 1, 0)      # Reset rotation
+    glTranslatef(-20, 0, 0)     # At (-10, 0, 40)
+    glRotatef(-90, 0, 1, 0)     # Rotate back to original position
+    gluCylinder(gluNewQuadric(), 4, 4, 20, 10, 10) # quadric, base radius, top radius, height, slices, stacks
+    
+    glPopMatrix()
+
+def spawn_enemy(num = enemy_count):
+    global enemy_list, enemy_size, enemy_speed
+    
+    for i in range(num):
+        x = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
+        y = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
+        z = 0
+        while abs(x) < player_pos[0] + 200:
+            x = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
+        while abs(y) < player_pos[1] + 200:
+            y = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
+        enemy_list.append([x, y, z])
                    
 def mouse_listener(button, state, x, y):
     global mode_over, mode_first_person, player_turn_speed, mode_cheat_vision
@@ -270,6 +327,10 @@ def show_screen():
     draw_grid()
     draw_player()
     
+    if not mode_over:
+        for enemy in enemy_list:
+            draw_enemy(*enemy)
+    
     glutSwapBuffers()
 
 def idle():
@@ -289,7 +350,6 @@ def idle():
     
     glutPostRedisplay()
 
-
 def main():
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
@@ -297,6 +357,8 @@ def main():
     glutInitWindowPosition(0, 0)
     glutCreateWindow(b"Bullet Frenzy 3D")
     glEnable(GL_DEPTH_TEST)
+    
+    spawn_enemy()
     
     glutDisplayFunc(show_screen)
     glutIdleFunc(idle)
