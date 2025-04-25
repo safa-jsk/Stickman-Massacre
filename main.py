@@ -44,6 +44,8 @@ enemy_list = []
 enemy_speed = 5
 enemy_count = 5
 
+bullets_list = []
+
 def draw_text(x, y, text, font = GLUT_BITMAP_HELVETICA_18):
     glColor3f(1, 1, 1)
     glMatrixMode(GL_PROJECTION)
@@ -185,12 +187,44 @@ def light_attack():
         is_light_attacking = True
         right_arm_angle = 0
         
-def strong_attack():
-    global is_strong_attacking, left_arm_angle
+def convert_angle_to_radians(angle):
+    radian = math.radians(angle)
+    cos_value = math.cos(radian)
+    sin_value = math.sin(radian)
+    return radian, cos_value, sin_value
+
+def draw_bullet(bullet):
+    glPushMatrix()
+    glTranslatef(bullet['pos'][0], bullet['pos'][1], bullet['pos'][2] + 55)
+    glRotatef(90, 1, 0, 0)  # Rotate around z-axis
+    glColor3f(0, 0, 0)
+    glutSolidCube(5)
+    glPopMatrix()
+
+def fire_bullet():
+    bullet_speed = 5
+    e_bullet = {'pos': [player_pos[0]-20, player_pos[1]-5, player_pos[2]], 'angle': player_angle-90, 'speed': bullet_speed}
+    bullets_list.append(e_bullet)
     
-    if not mode_over and not is_strong_attacking:
-        is_strong_attacking = True
-        left_arm_angle = 0
+def move_bullet():
+    global bullets_list, bullets_missed
+    new_bullets = []
+    for i in bullets_list:
+        # =====================Update bullet position based on its speed and angle==============================
+        val = convert_angle_to_radians(i['angle'])  
+        i['pos'][0] += i['speed'] * val[1]
+        i['pos'][1] += i['speed'] * val[2]
+        
+
+        new_bullets.append(i)
+            
+    bullets_list = new_bullets
+# def strong_attack():
+#     global is_strong_attacking, left_arm_angle
+    
+#     if not mode_over and not is_strong_attacking:
+#         is_strong_attacking = True
+#         left_arm_angle = 0
 
 def draw_enemy(x, y, z):
     glPushMatrix()
@@ -250,7 +284,8 @@ def mouse_listener(button, state, x, y):
         light_attack()
     
     if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
-        strong_attack()
+        # strong_attack()
+        fire_bullet()
     
 def keyboard_listener(key, a, b):
     global player_angle, player_speed, player_turn_speed, player_pos, gun_angle, gun_bullet_speed, gun_bullets, gun_missed_bullets
@@ -330,6 +365,8 @@ def show_screen():
     if not mode_over:
         for enemy in enemy_list:
             draw_enemy(*enemy)
+    for bullet in bullets_list:
+        draw_bullet(bullet)
     
     glutSwapBuffers()
 
@@ -342,11 +379,12 @@ def idle():
             right_arm_angle = 0
             is_light_attacking = False
     
-    if is_strong_attacking:
-        left_arm_angle -= strong_attack_speed
-        if abs(left_arm_angle) >= 360:
-            left_arm_angle = 0
-            is_strong_attacking = False
+    
+        # left_arm_angle -= strong_attack_speed
+        # if abs(left_arm_angle) >= 360:
+        #     left_arm_angle = 0
+        #     is_strong_attacking = False
+    move_bullet()
     
     glutPostRedisplay()
 
