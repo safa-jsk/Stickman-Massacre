@@ -1,0 +1,34 @@
+Player:
+1. Redraw Model                                             Srabon
+2. Health bar/percentage                                    Saadat
+
+Enemy:
+1. New Model                                                Srabon
+2. 4 enemies                                                Safa
+3. Health increases every round (+0.5)                      Safa
+4. Collision                                                Safa
+
+Boss:
+1. New Model (1.2x-1.5x of Player)                          Srabon
+2. Can Attack (Strong Attack commented)                     Safa
+3. 2nd Attack (Player Light Attack Uppercut)                Safa
+4. Health bar                                               Saadat
+
+Inputs:
+1. Block (Tab Button)  [Time library]                       Safa
+2. Sprint (Shift)                                           Safa
+
+Gameplay:
+1. Random Loots (every 10s)                                 Saadat
+    a. Life
+    b. Double Damage (10s)
+    c. Shield   (10s)
+2. Arena re-colored                                         Srabon
+
+Cheat Mode:
+1. Infinite Health
+2. One hit KO
+
+Loading Screen:
+1. PvE  (Normal gameplay)
+2. PvP
