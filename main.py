@@ -69,6 +69,7 @@ player_angle = 0
 player_speed = 10
 player_turn_speed = 5
 player_life = 10
+shift_count = 0
 
 # Light Attack
 right_arm_angle = 0
@@ -489,6 +490,7 @@ def move_enemy():
                 if player_life <= 0:
                     game_over = True
             enemy_list.remove(enemy)  # Remove enemy on collision
+            spawn_enemy(1)
     
 #---------------------------------------------------- Boss ---------------------------------------------------   
    
@@ -639,7 +641,7 @@ def boss_attack():
         is_boss_attacking = True
         boss_arm_angle = 0
 
-#---------------------------------------------------- Offense ---------------------------------------------------  
+#---------------------------------------------------- Moves ---------------------------------------------------  
 def hit_enemy_bullet(bullets, enemies):
     global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss
     
@@ -673,6 +675,11 @@ def hit_enemy_melee(enemies):
         if dist(player_pos, enemy) <= 150 and in_front(*enemy):
             game_score += 1
             enemies.remove(enemy)
+
+def block_boss_attack():
+    global player_life, boss_health, boss_active, kills_since_boss, shield_active, shield_hits
+    
+    pass
 
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
@@ -734,10 +741,15 @@ def keyboard_listener(key, a, b):
     if key == b'p':
         boss_attack()
     
+    if key == b'x':
+        block_boss_attack()
+    
     player_pos = [x, y, z]
     
 def specialKeyListener(key, a, b):
-    global camera_angle, camera_radius, camera_height
+    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, mode_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
+    
+    mods = glutGetModifiers()
     
     if key == GLUT_KEY_UP:
         camera_height -= 10
@@ -752,6 +764,13 @@ def specialKeyListener(key, a, b):
 
     if key == GLUT_KEY_RIGHT:
         camera_angle += 5
+    
+    if mods & GLUT_ACTIVE_SHIFT:
+        if (shift_count % 2) == 0:
+            player_speed *= 2.0
+        else:
+            player_speed *= 0.5
+        shift_count += 1
 
 #---------------------------------------------------- System ---------------------------------------------------
 
