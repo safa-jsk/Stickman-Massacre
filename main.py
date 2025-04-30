@@ -6,6 +6,9 @@ from OpenGL.GLUT import GLUT_BITMAP_HELVETICA_18
 import math
 import random
 
+import time
+
+
 # System Congiguration
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 800
@@ -21,13 +24,54 @@ camera_height = 200
 # Modes
 mode_over = False
 
+
+game_over = False
+game_score = 0
+bullets_missed = 0
+Player_Max_Life = 10
+Bar_len  = 20
+
+level = 1
+kills_since_boss = 0
+boss_active = True
+boss_max_health = 5
+boss_health     = 5
+
+KILLS_PER_BOSS  = 4
+ENEMY_BASE_HP   = 1.0
+ENEMY_HP_BONUS  = 0.5
+BOSS_BASE_HP    = 10.0
+BOSS_HP_BONUS   = 5.0
+
+# Loot state----------------------------------------------------------------------------------------------------------------------
+loot_list = []    # will hold dicts for each on‐screen pickup
+last_loot_spawn = 0
+next_loot_delay = 0
+spawed_a_loot = False
+
+# Effect state
+double_active     = False
+double_ends       = 0
+shield_active     = False
+shield_ends       = 0
+shield_hits       = 0
+
+# Constants
+LOOT_TYPES       = ['life','double','shield']
+LOOT_VIS_TIME    = 10_000    # ms on ground
+SHIELD_DURATION  = 15_000    # ms after pickup
+DOUBLE_DURATION  = 15_000    # ms after pickup
+SHIELD_HITS      = 5
+LOOT_SPAWN_MIN   = 5_000     # ms
+LOOT_SPAWN_MAX   = 15_000    # ms
+#----------------------------------------------------------------------------------------------------------------------
+
 # Player-related variables
 player_pos = [0, 0, 0]
 player_angle = 0
 player_speed = 10
 player_turn_speed = 5
 player_life = 10
-player_score = 0
 
 # Light Attack
 right_arm_angle = 0
@@ -276,7 +320,112 @@ def spawn_enemy(num = enemy_count):
         while abs(y) < player_pos[1] + 200:
             y = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
         enemy_list.append([x, y, z])
-                   
+
+#---------------------------------------------------- Spawning a random loot ---------------------------------------------------
+def schedule_next_loot():
+    global next_loot_delay
+    next_loot_delay = random.randint(LOOT_SPAWN_MIN, LOOT_SPAWN_MAX)   # here we set the delay for the next loot spawn
+
+def spawn_loot():
+    """Create one loot at a random grid position."""
+    
+    now = glutGet(GLUT_ELAPSED_TIME)
+    t = random.choice(LOOT_TYPES)
+    x = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
+    y = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
+    loot_list.append({
+        'type': t,
+        'pos': [x,y,35],           # z=20 so it’s above the ground
+        'born': now,
+        'angle': 0
+    })
+    print("Loot Spawned: ", loot_list[0]['type'], loot_list[0]['pos'])
+    
+    
+#---------------------------------------------------- Updating & drawing loots---------------------------------------------------
+def dist(a, b):
+    # distance between two points in 3D space using Euclidean distance formula
+    # a and b are lists of 3D coordinates [x, y, z]
+    # z coordinate of loot is 35, so we subtract 35 from b[2] to get the correct distance
+    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-(b[2]-35))**2)
+def update_loots():
+    """Rotate, expire, and check pickup collisions."""
+    global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits
+
+    now = glutGet(GLUT_ELAPSED_TIME)
+
+    #  -- spawn new loot?
+    if now - (last_loot_spawn+ 5000) >= next_loot_delay:
+        if spawed_a_loot:
+            pass
+        else:
+            spawn_loot()      # spawn a new loot
+            last_loot_spawn = now
+            schedule_next_loot()     
+
+    loots_to_pick = []
+    for L in loot_list:
+        age = now - L['born']
+        if age > LOOT_VIS_TIME:
+            continue    # expired, don’t keep
+
+        # rotate 360° every 5s
+        L['angle'] = (age / 5000.0) * 360 % 360
+
+        # collision?
+        if dist(player_pos, L['pos']) < 40:
+            # pickup!
+            if L['type'] == 'life':
+                heal = int(Player_Max_Life * 0.2)
+                player_life = min(Player_Max_Life, player_life + heal)
+            elif L['type'] == 'double':
+                double_active = True
+                double_ends   = now + DOUBLE_DURATION
+            elif L['type'] == 'shield':
+                shield_active = True
+                shield_ends   = now + SHIELD_DURATION
+                shield_hits   = SHIELD_HITS
+            # remove that loot from the list
+            loot_list.remove(L)
+            continue  # remove from screen
+
+        loots_to_pick.append(L)
+    loot_list[:] = loots_to_pick
+
+    # expire effects
+    if double_active and now >= double_ends:
+        double_active = False
+    if shield_active and now >= shield_ends:
+        shield_active = False
+    return loots_to_pick
+
+def draw_loots():
+    """Render each loot as a rotating shape."""
+    #print player_pos, loot_list postion
+    # if loot_list:
+    #     print("Player Position: ", player_pos)
+    #     print("Loots Position: ", loot_list)
+    for L in loot_list:
+        glPushMatrix()
+        glTranslatef(L['pos'][0], L['pos'][1], L['pos'][2])
+        glRotatef(L['angle'], 0, 0, 1)  # Rotate around z-axis
+        glRotatef(L['angle'], 0,1,0)
+
+        if L['type'] == 'life':
+            glColor3f(0,1,0)
+            glutSolidSphere(35,12,12) # parameters are: radius, slices, stacks
+        elif L['type'] == 'double':
+            glColor3f(1,1,0)
+            glutSolidCube(50) # parameters are: size of the cube
+        elif L['type'] == 'shield':
+            glColor3f(0,0,1)
+            glutSolidTorus(5,30,12,12) # parameters are: inner radius, outer radius, slices, stacks
+
+        glPopMatrix()
+
+
+
+
 def mouse_listener(button, state, x, y):
     global mode_over, mode_first_person, player_turn_speed, mode_cheat_vision
     
@@ -289,7 +438,7 @@ def mouse_listener(button, state, x, y):
     
 def keyboard_listener(key, a, b):
     global player_angle, player_speed, player_turn_speed, player_pos, gun_angle, gun_bullet_speed, gun_bullets, gun_missed_bullets
-    global mode_over, player_life, player_score, enemy_list, mode_cheat, mode_cheat_vision, mode_first_person, enemy_size
+    global mode_over, player_life, game_score, enemy_list, mode_cheat, mode_cheat_vision, mode_first_person, enemy_size
     
     x = player_pos[0]
     y = player_pos[1]
@@ -352,7 +501,7 @@ def specialKeyListener(key, a, b):
         camera_angle += 5
 
 def show_screen():
-    global mode_over, player_life, player_score, gun_missed_bullets
+    global mode_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawed_a_loot
     
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -361,6 +510,48 @@ def show_screen():
     setup_camera()
     draw_grid()
     draw_player()
+    
+    draw_loots()
+    spawed_loot = update_loots()
+    
+    if spawed_loot:
+        spawed_a_loot = True
+        if spawed_loot[0]['type'] == 'double':
+            draw_text(380, 740, f"Loot Spawed : DOUBLE DAMAGE")
+        else:
+            draw_text(380, 740, f"Loot Spawed : {(spawed_loot[0]['type']).upper()}")
+    else:
+        spawed_a_loot = False
+        # draw_text(380, 770, f"Loot Spawed : None")
+    
+    # ---- NEW: draw a text-based health bar ----
+    hp = max(0, min(player_life, Player_Max_Life))
+    hp_ratio = hp / Player_Max_Life
+    filled   = int(hp_ratio * Bar_len)
+    empty    = Bar_len - filled
+    bar      = '#' * filled + '-' * empty
+    percent  = int(hp_ratio * 100)
+    
+    #Boss -----------------------------------------
+    if boss_active:
+    # clamp
+        bhp_ratio = max(0.0, boss_health/boss_max_health)
+        bfilled   = int(bhp_ratio * Bar_len)
+        bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
+        percent   = int(bhp_ratio*100)
+        draw_text(680, 770, f"Boss: [{bbar}] {percent}%")
+        
+    if not game_over:
+        draw_text(10, 770, f"HP: [{bar}] {percent}%")
+        draw_text(10, 740, f"Score: {game_score}")
+        draw_text(10, 710, f"Level: {level}")
+        
+        # draw_text(10, 710, f"Bullets Missed: {bullets_missed}")
+    if game_over:
+        # draw_text(400, 400, "GAME OVER! Press 'R' to Restart")
+        draw_text(10, 770, f"Game is Over. Your score is {game_score}.")
+        draw_text(10, 740, 'Press "R" to Restart the Game')
+
     
     if not mode_over:
         for enemy in enemy_list:
@@ -371,7 +562,7 @@ def show_screen():
     glutSwapBuffers()
 
 def idle():
-    global right_arm_angle, is_light_attacking, left_arm_angle, is_strong_attacking
+    global right_arm_angle, is_light_attacking, left_arm_angle, is_strong_attacking, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, update_loots
     
     if is_light_attacking:
         right_arm_angle -= light_attack_speed
@@ -385,10 +576,12 @@ def idle():
         #     left_arm_angle = 0
         #     is_strong_attacking = False
     move_bullet()
+    update_loots() 
     
     glutPostRedisplay()
 
 def main():
+    global last_loot_spawn
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -397,12 +590,17 @@ def main():
     glEnable(GL_DEPTH_TEST)
     
     spawn_enemy()
+    schedule_next_loot()  
+    last_loot_spawn = glutGet(GLUT_ELAPSED_TIME) 
     
     glutDisplayFunc(show_screen)
     glutIdleFunc(idle)
     glutKeyboardFunc(keyboard_listener)
     glutSpecialFunc(specialKeyListener)
     glutMouseFunc(mouse_listener)
+    
+    # update_loots()
+    # glutPostRedisplay()
     
     glutMainLoop()
 

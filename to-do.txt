@@ -1,6 +1,6 @@
 Player:
 1. Redraw Model                                             Srabon
-2. Health bar/percentage                                    Saadat
+2. Health bar/percentage                                    Saadat (Done)
 
 Enemy:
 1. New Model                                                Srabon
@@ -12,7 +12,7 @@ Boss:
 1. New Model (1.2x-1.5x of Player)                          Srabon
 2. Can Attack (Strong Attack commented)                     Safa
 3. 2nd Attack (Player Light Attack Uppercut)                Safa
-4. Health bar                                               Saadat
+4. Health bar                                               Saadat (Done)
 
 Inputs:
 1. Block (Tab Button)  [Time library]                       Safa
