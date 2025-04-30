@@ -202,7 +202,6 @@ def move_bullet():
     global bullets_list, bullets_missed
     new_bullets = []
     for i in bullets_list:
-        # =====================Update bullet position based on its speed and angle==============================
         val = convert_angle_to_radians(i['angle'])  
         i['pos'][0] += i['speed'] * val[1]
         i['pos'][1] += i['speed'] * val[2]
