@@ -55,11 +55,11 @@ shield_ends       = 0
 shield_hits       = 0
 
 # Constants
-LOOT_TYPES       = ['life','double','shield']
+LOOT_TYPES       = ['life', 'double', 'shield']
 LOOT_VIS_TIME    = 10_000    # ms on ground
 SHIELD_DURATION  = 15_000    # ms after pickup
 DOUBLE_DURATION  = 15_000    # ms after pickup
-SHIELD_HITS      = 5
+SHIELD_HITS      = 1
 LOOT_SPAWN_MIN   = 5_000     # ms
 LOOT_SPAWN_MAX   = 15_000    # ms
 
@@ -82,7 +82,7 @@ boss_attack_speed = 2
 
 # Enemy-related variables
 enemy_list = []
-enemy_speed = 5
+enemy_speed = 0.1
 enemy_count = 5
 
 # Gun-related variables
@@ -92,7 +92,8 @@ bullets_list = []
 
 # Boss-related variables
 boss_spawned = False
-boss_position = [0, 0, 0] 
+boss_position = [0, 0, 0]
+boss_grab_toggle = 0
 
 #---------------------------------------------------- Game Space  ---------------------------------------------------
 
@@ -460,7 +461,35 @@ def spawn_enemy(num=enemy_count):
         
         enemy_list.append([x, y, 0])
 
+def move_enemy():
+    global enemy_list, enemy_speed, game_over, player_life
+    global mode_over, shield_active, shield_hits
+    
+    for enemy in enemy_list:
+        if mode_over:
+            break
+        
+        # Calculate angle to player
+        dx = player_pos[0] - enemy[0]
+        dy = player_pos[1] - enemy[1]
 
+        radian = math.atan2(dy, dx)
+        
+        enemy[0] += enemy_speed * math.cos(radian)
+        enemy[1] += enemy_speed * math.sin(radian)
+
+        # Check for collision with player
+        if dist(player_pos, enemy) < 50:
+            if shield_active:
+                shield_hits -= 1
+                if shield_hits <= 0:
+                    shield_active = False
+            else:
+                player_life -= 1
+                if player_life <= 0:
+                    game_over = True
+            enemy_list.remove(enemy)  # Remove enemy on collision
+    
 #---------------------------------------------------- Boss ---------------------------------------------------   
    
 def draw_boss(x, y, z):
@@ -522,12 +551,17 @@ def draw_boss(x, y, z):
         gluCylinder(quad, 2, 0, 20, 8, 8)
         glPopMatrix()
 
-            # === LEFT ARM (close to shoulder like player) ===
+        # === LEFT ARM (close to shoulder like player) ===
         glPushMatrix()
         glTranslatef(20, 0, 80)  # Move closer to body, lower to match shoulder height
         glRotatef(-90, 1, 0, 0)
+        
+        glPushMatrix()
+        glRotatef(boss_arm_angle, 0, 1, 0)  # Rotate around y-axis
         glColor3f(0.5, 0.0, 0.0)  # Crimson
         gluCylinder(quad, 8, 8, 65, 10, 10)
+        glPopMatrix()
+        
         glPopMatrix()
 
         # Caps
@@ -547,8 +581,13 @@ def draw_boss(x, y, z):
         glPushMatrix()
         glTranslatef(-20, 0, 80)  # Move closer to body
         glRotatef(-90, 1, 0, 0)
+        
+        glPushMatrix()
+        glRotatef(-boss_arm_angle, 0, 1, 0)  # Rotate around y-axis
         glColor3f(0.5, 0.0, 0.0)
         gluCylinder(quad, 8, 8, 65, 10, 10)
+        glPopMatrix()
+        
         glPopMatrix()
 
         # Caps
@@ -566,30 +605,32 @@ def draw_boss(x, y, z):
 
 def spawn_boss():
     global boss_spawned, boss_position, boss_angle
+    
+    if (game_score % enemy_count) == 0 and game_score > 0:
 
-    min_distance = 300
-    max_distance = 400
-    distance = random.randint(min_distance, max_distance)
+        min_distance = 300
+        max_distance = 400
+        distance = random.randint(min_distance, max_distance)
 
-    angle_rad = math.radians(player_angle)
+        angle_rad = math.radians(player_angle)
 
-    # Spawn in the direction player is facing
-    dx = -math.sin(angle_rad) * distance
-    dy = -math.cos(angle_rad) * distance
+        # Spawn in the direction player is facing
+        dx = -math.sin(angle_rad) * distance
+        dy = -math.cos(angle_rad) * distance
 
-    x = player_pos[0] + dx
-    y = player_pos[1] + dy
+        x = player_pos[0] + dx
+        y = player_pos[1] + dy
 
-    # Clamp within arena
-    x = max(-GRID_LENGTH + 150, min(GRID_LENGTH - 150, x))
-    y = max(-GRID_LENGTH + 150, min(GRID_LENGTH - 150, y))
+        # Clamp within arena
+        x = max(-GRID_LENGTH + 150, min(GRID_LENGTH - 150, x))
+        y = max(-GRID_LENGTH + 150, min(GRID_LENGTH - 150, y))
 
-    boss_position = [x, y, 0]
+        boss_position = [x, y, 0]
 
-    # Boss should face the player → angle from boss to player
-    boss_angle = (math.degrees(math.atan2(player_pos[1] - y, player_pos[0] - x)) + 90) % 360
+        # Boss should face the player → angle from boss to player
+        boss_angle = (math.degrees(math.atan2(player_pos[1] - y, player_pos[0] - x)) + 90) % 360
 
-    boss_spawned = True
+        boss_spawned = True
 
 def boss_attack():
     global is_boss_attacking, boss_arm_angle
@@ -690,6 +731,9 @@ def keyboard_listener(key, a, b):
             # Player rotates right
             player_angle -= player_turn_speed
     
+    if key == b'p':
+        boss_attack()
+    
     player_pos = [x, y, z]
     
 def specialKeyListener(key, a, b):
@@ -776,13 +820,25 @@ def show_screen():
     glutSwapBuffers()
 
 def idle():
-    global right_arm_angle, is_light_attacking, left_arm_angle, is_strong_attacking, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, update_loots
+    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, update_loots
     
-    if is_light_attacking:
-        right_arm_angle -= light_attack_speed
-        if abs(right_arm_angle) >= 360:
-            right_arm_angle = 0
-            is_light_attacking = False
+    if not game_over:
+        move_enemy()
+    
+        if is_light_attacking:
+            right_arm_angle -= light_attack_speed
+            if abs(right_arm_angle) >= 360:
+                right_arm_angle = 0
+                is_light_attacking = False
+        
+        if is_boss_attacking:
+            boss_arm_angle += boss_attack_speed * 0.5 * (-1) ** boss_grab_toggle
+            if abs(boss_arm_angle) >= 90:
+                boss_grab_toggle = 1
+            if abs(boss_arm_angle) >= 91:
+                boss_arm_angle = 0
+                is_boss_attacking = False
+                boss_grab_toggle = 0
     
     move_bullet()
     update_loots() 
@@ -800,10 +856,9 @@ def main():
     glutCreateWindow(b"Bullet Frenzy 3D")
     glEnable(GL_DEPTH_TEST)
     
-    spawn_enemy()
     schedule_next_loot()  
     last_loot_spawn = glutGet(GLUT_ELAPSED_TIME) 
-    spawn_enemy(4)
+    spawn_enemy(enemy_count)
     spawn_boss()  
     
     glutDisplayFunc(show_screen)
