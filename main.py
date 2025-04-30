@@ -5,46 +5,43 @@ from OpenGL.GLUT import GLUT_BITMAP_HELVETICA_18
 
 import math
 import random
-
 import time
 
-
 # System Congiguration
-# System Configuration
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 800
 GRID_LENGTH = 600
 fovY = 120
 
 # Camera-related variables
-camera_pos = [0, 500, 500]
+camera_pos = [0, 600, 600]
 camera_angle = 0
 camera_radius = 600
 camera_height = 600
 
 # Modes
 mode_over = False
-
-
 game_over = False
 game_score = 0
 bullets_missed = 0
 Player_Max_Life = 10
 Bar_len  = 20
 
+# Game Progression
 level = 1
 kills_since_boss = 0
 boss_active = True
 boss_max_health = 5
 boss_health     = 5
 
+# Enemy-related variables
 KILLS_PER_BOSS  = 4
 ENEMY_BASE_HP   = 1.0
 ENEMY_HP_BONUS  = 0.5
 BOSS_BASE_HP    = 10.0
 BOSS_HP_BONUS   = 5.0
 
-# Loot state----------------------------------------------------------------------------------------------------------------------
+# Loot state
 loot_list = []    # will hold dicts for each on‐screen pickup
 last_loot_spawn = 0
 next_loot_delay = 0
@@ -65,7 +62,6 @@ DOUBLE_DURATION  = 15_000    # ms after pickup
 SHIELD_HITS      = 5
 LOOT_SPAWN_MIN   = 5_000     # ms
 LOOT_SPAWN_MAX   = 15_000    # ms
-#----------------------------------------------------------------------------------------------------------------------
 
 # Player-related variables
 player_pos = [0, 0, 0]
@@ -79,18 +75,22 @@ right_arm_angle = 0
 is_light_attacking = False
 light_attack_speed = 2
 
-# Strong Attack
-left_arm_angle = 0
-is_strong_attacking = False
-strong_attack_speed = 2
+# Boss Attack
+boss_arm_angle = 0
+is_boss_attacking = False
+boss_attack_speed = 2
 
 # Enemy-related variables
 enemy_list = []
 enemy_speed = 5
 enemy_count = 5
 
+# Gun-related variables
+bullet_speed = 2
+bullet_size = 20
 bullets_list = []
 
+# Boss-related variables
 boss_spawned = False
 boss_position = [0, 0, 0] 
 
@@ -145,7 +145,6 @@ def draw_arena():
         glVertex3f(*v1, 100)
     glEnd()
 
-
 def setup_camera():
     global camera_pos, camera_angle, camera_radius, camera_height, fovY
     
@@ -167,6 +166,8 @@ def setup_camera():
             0, 0, 1)    # Up vector (z-axis)
 
 def draw_player():
+    global gun_point
+    
     glPushMatrix()
 
     # Player Position
@@ -177,33 +178,30 @@ def draw_player():
         glRotatef(-90, 1, 0, 0)
 
     # Right Leg (Pants)
-    glTranslatef(15, 0, 0)
-    glColor3f(0.0, 0.0, 0.8)  # Charcoal gray pants
+    glTranslatef(15, 0, 0)      # At (15, 0, 0)
+    glColor3f(0.0, 0.0, 0.8)    # Charcoal gray pants
     gluCylinder(gluNewQuadric(), 10, 10, 50, 10, 10)
 
     # Left Leg (Pants)
-    glTranslatef(-30, 0, 0)
-    glColor3f(0.0, 0.0, 0.8)  # Charcoal gray pants
+    glTranslatef(-30, 0, 0)     # At (-15, 0, 0)
+    glColor3f(0.0, 0.0, 0.8)    # Charcoal gray pants
     gluCylinder(gluNewQuadric(), 10, 10, 50, 10, 10)
 
     # Body (Shirt)
-    glTranslatef(15, 0, 50 + 20)
-    glColor3f(0.2, 0.0, 0.0)   # Dark red shirt
+    glTranslatef(15, 0, 50 + 20)    # At (0, 0, 70)
+    glColor3f(0.2, 0.0, 0.0)        # Dark red shirt
     glutSolidCube(40)
 
     # Head
-    glTranslatef(0, 0, 40)
+    glTranslatef(0, 0, 40)          # At (0, 0, 110)
     glColor3f(0.0, 0.0, 0.0)
     gluSphere(gluNewQuadric(), 20, 10, 10)
 
-    # Left Arm
-    glTranslatef(20, 0, -30)
+    # Left Arm / Gun
+    glTranslatef(20, 0, -30)        # At (20, 0, 80)
     glRotatef(90, 1, 0, 0)
-    glPushMatrix()
-    glRotatef(left_arm_angle, 0, 1, 0)
     glColor3f(254 / 255, 223 / 255, 188 / 255)
     gluCylinder(gluNewQuadric(), 8, 8, 65, 10, 10)
-    glPopMatrix()
 
     # Right Arm
     glRotatef(90, 1, 0, 0)
@@ -213,9 +211,8 @@ def draw_player():
     gluCylinder(gluNewQuadric(), 8, 8, 65, 10, 10)
 
     glPopMatrix()
-
-
-
+    
+    gun_point = [20, 0, 70]
 
 def light_attack():
     global is_light_attacking, right_arm_angle
@@ -234,13 +231,23 @@ def draw_bullet(bullet):
     glPushMatrix()
     glTranslatef(bullet['pos'][0], bullet['pos'][1], bullet['pos'][2] + 55)
     glRotatef(90, 1, 0, 0)  # Rotate around z-axis
-    glColor3f(0, 0, 0)
-    glutSolidCube(5)
+    glColor3f(1, 0, 0)
+    glutSolidCube(bullet_size)
     glPopMatrix()
 
 def fire_bullet():
-    bullet_speed = 5
-    e_bullet = {'pos': [player_pos[0]-20, player_pos[1]-5, player_pos[2]], 'angle': player_angle-90, 'speed': bullet_speed}
+    angle_rad = convert_angle_to_radians(player_angle - 90)[0]
+    
+    offset_x = gun_point[0] * math.cos(angle_rad) - gun_point[1] * math.sin(angle_rad)
+    offset_y = gun_point[0] * math.sin(angle_rad) + gun_point[1] * math.cos(angle_rad)
+    
+    x = player_pos[0] + offset_x
+    y = player_pos[1] + offset_y
+    z = player_pos[2] + gun_point[2]
+    
+    e_bullet = {'pos': [x, y, z],
+                'angle': player_angle-90,
+                'speed': bullet_speed}
     bullets_list.append(e_bullet)
     
 def move_bullet():
@@ -251,16 +258,33 @@ def move_bullet():
         i['pos'][0] += i['speed'] * val[1]
         i['pos'][1] += i['speed'] * val[2]
         
-
-        new_bullets.append(i)
+        if not (i['pos'][0] > GRID_LENGTH + 100
+        or i['pos'][0] < -GRID_LENGTH 
+        or i['pos'][1] > GRID_LENGTH + 100
+        or i['pos'][1] < -GRID_LENGTH):
+            new_bullets.append(i)
             
     bullets_list = new_bullets
-# def strong_attack():
-#     global is_strong_attacking, left_arm_angle
+
+def hit_enemy(bullets, enemies):
+    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss
     
-#     if not mode_over and not is_strong_attacking:
-#         is_strong_attacking = True
-#         left_arm_angle = 0
+    for bullet in bullets:
+        for enemy in enemies:
+            if dist(bullet['pos'], enemy) <= 50:  # Assuming a hit if within 50 units
+                game_score += 1
+                bullets_missed += 1
+                bullets.remove(bullet)
+                enemies.remove(enemy)
+
+                break
+
+def boss_attack():
+    global is_boss_attacking, boss_arm_angle
+    
+    if not mode_over and not is_boss_attacking:
+        is_boss_attacking = True
+        boss_arm_angle = 0
 
 def draw_enemy(x, y, z):
     glPushMatrix()
@@ -285,7 +309,7 @@ def draw_enemy(x, y, z):
     glutSolidCube(10)
     glPopMatrix()
     
-     # Legs
+    # Legs
     glPushMatrix()
     glColor3f(0.6, 0.1, 0.1)
     glTranslatef(10, -10, 10)
@@ -318,7 +342,7 @@ def draw_enemy(x, y, z):
     glutSolidCube(3)
     glPopMatrix()
 
-     # === Left Arm ===
+    # Left Arm
     glPushMatrix()
     glColor3f(0.5, 0.2, 0.2)
     glTranslatef(20, 0, 45)  # Side of body
@@ -326,7 +350,7 @@ def draw_enemy(x, y, z):
     gluCylinder(gluNewQuadric(), 4, 4, 25, 10, 10)
     glPopMatrix()
 
-    # === Right Arm ===
+    # Right Arm
     glPushMatrix()
     glColor3f(0.5, 0.2, 0.2)
     glTranslatef(-20, 0, 45)  # Side of body
@@ -334,23 +358,7 @@ def draw_enemy(x, y, z):
     gluCylinder(gluNewQuadric(), 4, 4, 25, 10, 10)
     glPopMatrix()
 
-
     glPopMatrix()
-
-
-
-def spawn_enemy(num = enemy_count):
-    global enemy_list, enemy_size, enemy_speed
-    
-    for i in range(num):
-        x = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
-        y = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
-        z = 0
-        while abs(x) < player_pos[0] + 200:
-            x = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
-        while abs(y) < player_pos[1] + 200:
-            y = random.uniform(-GRID_LENGTH + 100, GRID_LENGTH - 100)
-        enemy_list.append([x, y, z])
 
 #---------------------------------------------------- Spawning a random loot ---------------------------------------------------
 def schedule_next_loot():
@@ -358,7 +366,7 @@ def schedule_next_loot():
     next_loot_delay = random.randint(LOOT_SPAWN_MIN, LOOT_SPAWN_MAX)   # here we set the delay for the next loot spawn
 
 def spawn_loot():
-    """Create one loot at a random grid position."""
+    # Create one loot at a random grid position.
     
     now = glutGet(GLUT_ELAPSED_TIME)
     t = random.choice(LOOT_TYPES)
@@ -372,15 +380,14 @@ def spawn_loot():
     })
     print("Loot Spawned: ", loot_list[0]['type'], loot_list[0]['pos'])
     
-    
 #---------------------------------------------------- Updating & drawing loots---------------------------------------------------
 def dist(a, b):
     # distance between two points in 3D space using Euclidean distance formula
     # a and b are lists of 3D coordinates [x, y, z]
-    # z coordinate of loot is 35, so we subtract 35 from b[2] to get the correct distance
-    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-(b[2]-35))**2)
+    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+
 def update_loots():
-    """Rotate, expire, and check pickup collisions."""
+    # Rotate, expire, and check pickup collisions.
     global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits
 
     now = glutGet(GLUT_ELAPSED_TIME)
@@ -453,10 +460,6 @@ def draw_loots():
             glutSolidTorus(5,30,12,12) # parameters are: inner radius, outer radius, slices, stacks
 
         glPopMatrix()
-
-
-
-
    
 def draw_boss(x, y, z):
     glPushMatrix()
@@ -559,53 +562,20 @@ def draw_boss(x, y, z):
         glPopMatrix()
     glPopMatrix()
 
-
 def spawn_enemy(num=enemy_count):
     global enemy_list
     margin = 100  # Safety margin from arena edges
-    safe_distance_from_player = 200
-    safe_distance_from_boss = 150
-    min_distance_between_enemies = 100
 
-    max_attempts = 1000
-    attempts = 0
-
-    while len(enemy_list) < num and attempts < max_attempts:
+    while len(enemy_list) < num:
         x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
         y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
 
-        too_close = False
-
-        # Check distance from player
-        dx = x - player_pos[0]
-        dy = y - player_pos[1]
-        dist_to_player = math.hypot(dx, dy)
-        if dist_to_player < safe_distance_from_player:
-            too_close = True
-
-        # Check distance from boss if boss is spawned
-        if boss_spawned:
-            bx, by, _ = boss_position
-            dx_boss = x - bx
-            dy_boss = y - by
-            dist_to_boss = math.hypot(dx_boss, dy_boss)
-            if dist_to_boss < safe_distance_from_boss:
-                too_close = True
-
-        # Check distance from other enemies
-        for ex, ey, _ in enemy_list:
-            if math.hypot(x - ex, y - ey) < min_distance_between_enemies:
-                too_close = True
-                break
-
-        if not too_close:
-            enemy_list.append([x, y, 0])
-
-        attempts += 1
-
-
-
-
+        while abs(x) < player_pos[0] + 200:
+            x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        while abs(y) < player_pos[1] + 200:
+            y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        
+        enemy_list.append([x, y, 0])
 
 def spawn_boss():
     global boss_spawned, boss_position, boss_angle
@@ -633,16 +603,6 @@ def spawn_boss():
     boss_angle = (math.degrees(math.atan2(player_pos[1] - y, player_pos[0] - x)) + 90) % 360
 
     boss_spawned = True
-
-
-
-
-
-
-
-
-
-
                    
 def mouse_listener(button, state, x, y):
     global mode_over, mode_first_person, player_turn_speed, mode_cheat_vision
@@ -782,7 +742,6 @@ def show_screen():
 
     glutSwapBuffers()
 
-
 def idle():
     global right_arm_angle, is_light_attacking, left_arm_angle, is_strong_attacking, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, update_loots
     
@@ -792,13 +751,9 @@ def idle():
             right_arm_angle = 0
             is_light_attacking = False
     
-    
-        # left_arm_angle -= strong_attack_speed
-        # if abs(left_arm_angle) >= 360:
-        #     left_arm_angle = 0
-        #     is_strong_attacking = False
     move_bullet()
     update_loots() 
+    hit_enemy(bullets_list, enemy_list)
     
     glutPostRedisplay()
 
@@ -814,7 +769,7 @@ def main():
     spawn_enemy()
     schedule_next_loot()  
     last_loot_spawn = glutGet(GLUT_ELAPSED_TIME) 
-    spawn_enemy(5)
+    spawn_enemy(4)
     spawn_boss()  
     
     glutDisplayFunc(show_screen)
