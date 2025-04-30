@@ -94,6 +94,8 @@ bullets_list = []
 boss_spawned = False
 boss_position = [0, 0, 0] 
 
+#---------------------------------------------------- Game Space  ---------------------------------------------------
+
 def draw_text(x, y, text, font = GLUT_BITMAP_HELVETICA_18):
     glColor3f(1, 1, 1)
     glMatrixMode(GL_PROJECTION)
@@ -165,6 +167,17 @@ def setup_camera():
             0, 0, 0,    # Look-at target
             0, 0, 1)    # Up vector (z-axis)
 
+def convert_angle_to_radians(angle):
+    radian = math.radians(angle)
+    cos_value = math.cos(radian)
+    sin_value = math.sin(radian)
+    return radian, cos_value, sin_value
+
+def dist(a, b):
+    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
+#---------------------------------------------------- Player ---------------------------------------------------
+
 def draw_player():
     global gun_point
     
@@ -220,12 +233,6 @@ def light_attack():
     if not mode_over and not is_light_attacking:
         is_light_attacking = True
         right_arm_angle = 0
-        
-def convert_angle_to_radians(angle):
-    radian = math.radians(angle)
-    cos_value = math.cos(radian)
-    sin_value = math.sin(radian)
-    return radian, cos_value, sin_value
 
 def draw_bullet(bullet):
     glPushMatrix()
@@ -266,25 +273,103 @@ def move_bullet():
             
     bullets_list = new_bullets
 
-def hit_enemy(bullets, enemies):
-    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss
-    
-    for bullet in bullets:
-        for enemy in enemies:
-            if dist(bullet['pos'], enemy) <= 50:  # Assuming a hit if within 50 units
-                game_score += 1
-                bullets_missed += 1
-                bullets.remove(bullet)
-                enemies.remove(enemy)
+#---------------------------------------------------- Loots ---------------------------------------------------
 
-                break
+def draw_loots():
+    """Render each loot as a rotating shape."""
+    #print player_pos, loot_list postion
+    # if loot_list:
+    #     print("Player Position: ", player_pos)
+    #     print("Loots Position: ", loot_list)
+    for L in loot_list:
+        glPushMatrix()
+        glTranslatef(L['pos'][0], L['pos'][1], L['pos'][2])
+        glRotatef(L['angle'], 0, 0, 1)  # Rotate around z-axis
+        glRotatef(L['angle'], 0,1,0)
 
-def boss_attack():
-    global is_boss_attacking, boss_arm_angle
+        if L['type'] == 'life':
+            glColor3f(0,1,0)
+            glutSolidSphere(35,12,12) # parameters are: radius, slices, stacks
+        elif L['type'] == 'double':
+            glColor3f(1,1,0)
+            glutSolidCube(50) # parameters are: size of the cube
+        elif L['type'] == 'shield':
+            glColor3f(0,0,1)
+            glutSolidTorus(5,30,12,12) # parameters are: inner radius, outer radius, slices, stacks
+
+        glPopMatrix()
+
+def spawn_loot():
+    # Create one loot at a random grid position.
     
-    if not mode_over and not is_boss_attacking:
-        is_boss_attacking = True
-        boss_arm_angle = 0
+    now = glutGet(GLUT_ELAPSED_TIME)
+    t = random.choice(LOOT_TYPES)
+    x = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
+    y = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
+    loot_list.append({
+        'type': t,
+        'pos': [x,y,35],           # z=20 so it’s above the ground
+        'born': now,
+        'angle': 0
+    })
+    print("Loot Spawned: ", loot_list[0]['type'], loot_list[0]['pos'])
+
+def update_loots():
+    # Rotate, expire, and check pickup collisions.
+    global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits
+
+    now = glutGet(GLUT_ELAPSED_TIME)
+
+    #  -- spawn new loot?
+    if now - (last_loot_spawn+ 5000) >= next_loot_delay:
+        if spawed_a_loot:
+            pass
+        else:
+            spawn_loot()      # spawn a new loot
+            last_loot_spawn = now
+            schedule_next_loot()     
+
+    loots_to_pick = []
+    for L in loot_list:
+        age = now - L['born']
+        if age > LOOT_VIS_TIME:
+            continue    # expired, don’t keep
+
+        # rotate 360° every 5s
+        L['angle'] = (age / 5000.0) * 360 % 360
+
+        # collision?
+        if dist(player_pos, L['pos']) < 40:
+            # pickup!
+            if L['type'] == 'life':
+                heal = int(Player_Max_Life * 0.2)
+                player_life = min(Player_Max_Life, player_life + heal)
+            elif L['type'] == 'double':
+                double_active = True
+                double_ends   = now + DOUBLE_DURATION
+            elif L['type'] == 'shield':
+                shield_active = True
+                shield_ends   = now + SHIELD_DURATION
+                shield_hits   = SHIELD_HITS
+            # remove that loot from the list
+            loot_list.remove(L)
+            continue  # remove from screen
+
+        loots_to_pick.append(L)
+    loot_list[:] = loots_to_pick
+
+    # expire effects
+    if double_active and now >= double_ends:
+        double_active = False
+    if shield_active and now >= shield_ends:
+        shield_active = False
+    return loots_to_pick
+
+def schedule_next_loot():
+    global next_loot_delay
+    next_loot_delay = random.randint(LOOT_SPAWN_MIN, LOOT_SPAWN_MAX)   # here we set the delay for the next loot spawn
+
+#---------------------------------------------------- Enemy ---------------------------------------------------
 
 def draw_enemy(x, y, z):
     glPushMatrix()
@@ -360,106 +445,23 @@ def draw_enemy(x, y, z):
 
     glPopMatrix()
 
-#---------------------------------------------------- Spawning a random loot ---------------------------------------------------
-def schedule_next_loot():
-    global next_loot_delay
-    next_loot_delay = random.randint(LOOT_SPAWN_MIN, LOOT_SPAWN_MAX)   # here we set the delay for the next loot spawn
+def spawn_enemy(num=enemy_count):
+    global enemy_list
+    margin = 100  # Safety margin from arena edges
 
-def spawn_loot():
-    # Create one loot at a random grid position.
-    
-    now = glutGet(GLUT_ELAPSED_TIME)
-    t = random.choice(LOOT_TYPES)
-    x = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
-    y = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
-    loot_list.append({
-        'type': t,
-        'pos': [x,y,35],           # z=20 so it’s above the ground
-        'born': now,
-        'angle': 0
-    })
-    print("Loot Spawned: ", loot_list[0]['type'], loot_list[0]['pos'])
-    
-#---------------------------------------------------- Updating & drawing loots---------------------------------------------------
-def dist(a, b):
-    # distance between two points in 3D space using Euclidean distance formula
-    # a and b are lists of 3D coordinates [x, y, z]
-    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+    while len(enemy_list) < num:
+        x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
 
-def update_loots():
-    # Rotate, expire, and check pickup collisions.
-    global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits
+        while abs(x) < player_pos[0] + 200:
+            x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        while abs(y) < player_pos[1] + 200:
+            y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        
+        enemy_list.append([x, y, 0])
 
-    now = glutGet(GLUT_ELAPSED_TIME)
 
-    #  -- spawn new loot?
-    if now - (last_loot_spawn+ 5000) >= next_loot_delay:
-        if spawed_a_loot:
-            pass
-        else:
-            spawn_loot()      # spawn a new loot
-            last_loot_spawn = now
-            schedule_next_loot()     
-
-    loots_to_pick = []
-    for L in loot_list:
-        age = now - L['born']
-        if age > LOOT_VIS_TIME:
-            continue    # expired, don’t keep
-
-        # rotate 360° every 5s
-        L['angle'] = (age / 5000.0) * 360 % 360
-
-        # collision?
-        if dist(player_pos, L['pos']) < 40:
-            # pickup!
-            if L['type'] == 'life':
-                heal = int(Player_Max_Life * 0.2)
-                player_life = min(Player_Max_Life, player_life + heal)
-            elif L['type'] == 'double':
-                double_active = True
-                double_ends   = now + DOUBLE_DURATION
-            elif L['type'] == 'shield':
-                shield_active = True
-                shield_ends   = now + SHIELD_DURATION
-                shield_hits   = SHIELD_HITS
-            # remove that loot from the list
-            loot_list.remove(L)
-            continue  # remove from screen
-
-        loots_to_pick.append(L)
-    loot_list[:] = loots_to_pick
-
-    # expire effects
-    if double_active and now >= double_ends:
-        double_active = False
-    if shield_active and now >= shield_ends:
-        shield_active = False
-    return loots_to_pick
-
-def draw_loots():
-    """Render each loot as a rotating shape."""
-    #print player_pos, loot_list postion
-    # if loot_list:
-    #     print("Player Position: ", player_pos)
-    #     print("Loots Position: ", loot_list)
-    for L in loot_list:
-        glPushMatrix()
-        glTranslatef(L['pos'][0], L['pos'][1], L['pos'][2])
-        glRotatef(L['angle'], 0, 0, 1)  # Rotate around z-axis
-        glRotatef(L['angle'], 0,1,0)
-
-        if L['type'] == 'life':
-            glColor3f(0,1,0)
-            glutSolidSphere(35,12,12) # parameters are: radius, slices, stacks
-        elif L['type'] == 'double':
-            glColor3f(1,1,0)
-            glutSolidCube(50) # parameters are: size of the cube
-        elif L['type'] == 'shield':
-            glColor3f(0,0,1)
-            glutSolidTorus(5,30,12,12) # parameters are: inner radius, outer radius, slices, stacks
-
-        glPopMatrix()
+#---------------------------------------------------- Boss ---------------------------------------------------   
    
 def draw_boss(x, y, z):
     glPushMatrix()
@@ -562,21 +564,6 @@ def draw_boss(x, y, z):
         glPopMatrix()
     glPopMatrix()
 
-def spawn_enemy(num=enemy_count):
-    global enemy_list
-    margin = 100  # Safety margin from arena edges
-
-    while len(enemy_list) < num:
-        x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
-        y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
-
-        while abs(x) < player_pos[0] + 200:
-            x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
-        while abs(y) < player_pos[1] + 200:
-            y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
-        
-        enemy_list.append([x, y, 0])
-
 def spawn_boss():
     global boss_spawned, boss_position, boss_angle
 
@@ -603,6 +590,50 @@ def spawn_boss():
     boss_angle = (math.degrees(math.atan2(player_pos[1] - y, player_pos[0] - x)) + 90) % 360
 
     boss_spawned = True
+
+def boss_attack():
+    global is_boss_attacking, boss_arm_angle
+    
+    if not mode_over and not is_boss_attacking:
+        is_boss_attacking = True
+        boss_arm_angle = 0
+
+#---------------------------------------------------- Offense ---------------------------------------------------  
+def hit_enemy_bullet(bullets, enemies):
+    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss
+    
+    for bullet in bullets:
+        for enemy in enemies:
+            if dist(bullet['pos'], enemy) <= 50:  # Assuming a hit if within 50 units
+                game_score += 1
+                bullets_missed += 1
+                bullets.remove(bullet)
+                enemies.remove(enemy)
+
+                break
+
+def in_front(bx, by, bz):
+    dx = player_pos[0] - bx
+    dy = player_pos[1] - by
+    target_angle = math.degrees(math.atan2(dy, dx))
+    pa = player_angle % 360
+    ta = target_angle % 360
+    diff = (ta - pa + 540) % 360 - 180
+    return abs(diff) <= 90
+
+def hit_enemy_melee(enemies):
+    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, is_light_attacking
+    
+    # Only check once per swing
+    if not is_light_attacking or (right_arm_angle > -90):
+        return
+    # Hit frame reached: check all enemiesd
+    for enemy in enemies[:]:
+        if dist(player_pos, enemy) <= 150 and in_front(*enemy):
+            game_score += 1
+            enemies.remove(enemy)
+
+#---------------------------------------------------- Inputs ---------------------------------------------------
                    
 def mouse_listener(button, state, x, y):
     global mode_over, mode_first_person, player_turn_speed, mode_cheat_vision
@@ -677,6 +708,8 @@ def specialKeyListener(key, a, b):
 
     if key == GLUT_KEY_RIGHT:
         camera_angle += 5
+
+#---------------------------------------------------- System ---------------------------------------------------
 
 def show_screen():
     global mode_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawed_a_loot,player_score, boss_spawned, boss_position
@@ -753,7 +786,8 @@ def idle():
     
     move_bullet()
     update_loots() 
-    hit_enemy(bullets_list, enemy_list)
+    hit_enemy_bullet(bullets_list, enemy_list)
+    hit_enemy_melee(enemy_list)
     
     glutPostRedisplay()
 
