@@ -760,6 +760,72 @@ def hit_enemy_melee(enemies):
             boss_health -= 1
             boss_hit_this_swing = True
     
+def restart_game():
+    global game_over, game_score, bullets_missed, level, kills_since_boss, shift_count
+    global player_pos, player_angle, player_speed, player_turn_speed, player_life
+    global right_arm_angle, is_light_attacking, last_melee_time, boss_hit_this_swing
+    global bullets_list, last_bullet_time
+    global enemy_list, boss_spawned, boss_active, boss_position, boss_health
+    global loot_list, last_loot_spawn, next_loot_delay, spawned_a_loot
+    global double_active, double_ends, shield_active, shield_ends, shield_hits
+    global boss_bomb_ready, boss_bomb_active, boss_bomb_start_time, boss_bomb_last_time, boss_bomb_angle, boss_bomb_prev_time
+
+    # Game state
+    game_over = False
+    game_score = 0
+    bullets_missed = 0
+    level = 1
+    kills_since_boss = 0
+    shift_count = 0
+
+    # Player state
+    player_pos = [0, 0, 0]
+    player_angle = 0
+    player_speed = 10
+    player_turn_speed = 5
+    player_life = Player_Max_Life
+
+    # Melee
+    right_arm_angle = 0
+    is_light_attacking = False
+    last_melee_time = 0
+    boss_hit_this_swing = False
+
+    # Bullets
+    bullets_list = []
+    last_bullet_time = 0
+
+    # Enemies
+    enemy_list = []
+    spawn_enemy(enemy_count)
+
+    # Boss
+    boss_spawned = False
+    boss_active = False
+    boss_position = [0, -GRID_LENGTH + 100, 0]
+    boss_health = boss_max_health
+    boss_bomb_ready = True
+    boss_bomb_active = False
+    boss_bomb_start_time = 0
+    boss_bomb_last_time = 0
+    boss_bomb_angle = 0.0
+    boss_bomb_prev_time = time.time() * 1000
+
+    # Loot
+    loot_list = []
+    last_loot_spawn = int(time.time() * 1000)
+    next_loot_delay = 0
+    spawned_a_loot = False
+
+    # Power-ups
+    double_active = False
+    double_ends = 0
+    shield_active = False
+    shield_ends = 0
+    shield_hits = 0
+
+    print("Game Restarted.")
+
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
 def mouse_listener(button, state, x, y):
@@ -773,54 +839,42 @@ def mouse_listener(button, state, x, y):
         fire_bullet()
     
 def keyboard_listener(key, a, b):
-    global player_angle, player_speed, player_turn_speed, player_pos, gun_angle, gun_bullet_speed, gun_bullets, gun_missed_bullets
-    global game_over, player_life, game_score, enemy_list, mode_cheat, mode_cheat_vision, mode_first_person, enemy_size
-    
-    x = player_pos[0]
-    y = player_pos[1]
-    z = player_pos[2]
-    
-    if not game_over:
-        if key == b'w':
-            # Player moves forward
-            x -= player_speed * math.sin(math.radians(-player_angle))
-            y -= player_speed * math.cos(math.radians(player_angle))
-            
-            if x < -GRID_LENGTH:
-                x = -GRID_LENGTH
-            if x > GRID_LENGTH + 100:
-                x = GRID_LENGTH + 100
-            if y < -GRID_LENGTH:
-                y = -GRID_LENGTH
-            if y > GRID_LENGTH + 100:
-                y = GRID_LENGTH + 100
-        
-        if key == b's':
-            # Player moves backward
-            x += player_speed * math.sin(math.radians(-player_angle))
-            y += player_speed * math.cos(math.radians(player_angle))
-            
-            if x < -GRID_LENGTH:
-                x = -GRID_LENGTH
-            if x > GRID_LENGTH + 100:
-                x = GRID_LENGTH + 100
-            if y < -GRID_LENGTH:
-                y = -GRID_LENGTH
-            if y > GRID_LENGTH + 100:
-                y = GRID_LENGTH + 100
-        
-        if key == b'a':
-            # Player rotates left
-            player_angle += player_turn_speed
-        
-        if key == b'd':
-            # Player rotates right
-            player_angle -= player_turn_speed
-    
+    global player_angle, player_speed, player_turn_speed, player_pos
+    global game_over, player_life, game_score, enemy_list
+    global mode_cheat, mode_cheat_vision, mode_first_person
+    global enemy_size
+
+    x, y, z = player_pos
+
+    if key == b'w':
+        # Move forward
+        x -= player_speed * math.sin(math.radians(-player_angle))
+        y -= player_speed * math.cos(math.radians(player_angle))
+    elif key == b's':
+        # Move backward
+        x += player_speed * math.sin(math.radians(-player_angle))
+        y += player_speed * math.cos(math.radians(player_angle))
+    elif key == b'a':
+        # Turn left
+        player_angle += player_turn_speed
+    elif key == b'd':
+        # Turn right
+        player_angle -= player_turn_speed
+
+    # Clamp player within arena
+    x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
+    y = max(-GRID_LENGTH, min(y, GRID_LENGTH + 100))
+
+    player_pos = [x, y, z]
+
+    # Trigger boss attack manually
     if key == b'p':
         boss_attack()
-    
-    player_pos = [x, y, z]
+
+    # Restart the game anytime
+    if key == b'r':
+        restart_game()
+
     
 def specialKeyListener(key, a, b):
     global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
