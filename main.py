@@ -7,94 +7,95 @@ import math
 import random
 import time
 
-# System Congiguration
-WINDOW_WIDTH = 1000
+# ======================= System Configuration =======================
+WINDOW_WIDTH  = 1000
 WINDOW_HEIGHT = 800
-GRID_LENGTH = 600
-fovY = 120
+GRID_LENGTH   = 600
+fovY          = 120
 
-# Camera-related variables
-camera_pos = [0, 600, 600]
-camera_angle = 0
+# ======================= Camera Settings =======================
+camera_pos    = [0, 600, 600]
+camera_angle  = 0
 camera_radius = 600
 camera_height = 600
 
-# Modes
-mode_over = False
-game_over = False
-game_score = 0
-bullets_missed = 0
-Player_Max_Life = 10
-Bar_len  = 20
-
-# Game Progression
-level = 1
+# ======================= Game State =======================
+game_over        = False
+game_score       = 0
+bullets_missed   = 0
+level            = 1
 kills_since_boss = 0
+shift_count      = 0
 
-# Enemy-related variables
-KILLS_PER_BOSS  = 4
-ENEMY_BASE_HP   = 1.0
-ENEMY_HP_BONUS  = 0.5
-BOSS_BASE_HP    = 10.0
-BOSS_HP_BONUS   = 5.0
-
-# Loot state
-loot_list = []    # will hold dicts for each on‐screen pickup
-last_loot_spawn = 0
-next_loot_delay = 0
-spawned_a_loot = False
-
-# Effect state
-double_active     = False
-double_ends       = 0
-shield_active     = False
-shield_ends       = 0
-shield_hits       = 0
-
-# Constants
-LOOT_TYPES       = ['life', 'double', 'shield']
-LOOT_VIS_TIME    = 10_000    # ms on ground
-SHIELD_DURATION  = 15_000    # ms after pickup
-DOUBLE_DURATION  = 15_000    # ms after pickup
-SHIELD_HITS      = 1
-LOOT_SPAWN_MIN   = 5_000     # ms
-LOOT_SPAWN_MAX   = 15_000    # ms
-
-# Player-related variables
-player_pos = [0, 0, 0]
-player_angle = 0
-player_speed = 10
+# ======================= Player State =======================
+player_pos        = [0, 0, 0]
+player_angle      = 0
+player_speed      = 10
 player_turn_speed = 5
-player_life = 10
-shift_count = 0
+player_life       = 10
+Player_Max_Life   = 10
+Bar_len           = 20
 
-# Light Attack
-right_arm_angle = 0
-is_light_attacking = False
-light_attack_speed = 2
+# ======================= Player Melee (Light Attack) =======================
+right_arm_angle     = 0
+is_light_attacking  = False
+light_attack_speed  = 2
+last_melee_time     = 0
+melee_cooldown      = 600  # milliseconds
+boss_hit_this_swing = False
 
-# Boss Attack
-boss_arm_angle = 0
-is_boss_attacking = False
-boss_attack_speed = 2
+# ======================= Player Ranged (Gun) =======================
+bullet_speed     = 2
+bullet_size      = 20
+bullets_list     = []
+last_bullet_time = 0
+bullet_cooldown  = 300  # milliseconds
 
-# Enemy-related variables
-enemy_list = []
-enemy_speed = 0.1
-enemy_count = 5
+# ======================= Enemy Settings =======================
+enemy_list     = []
+enemy_speed    = 0.1
+enemy_count    = 5
+KILLS_PER_BOSS = 4
+ENEMY_BASE_HP  = 1.0
+ENEMY_HP_BONUS = 0.5
 
-# Gun-related variables
-bullet_speed = 2
-bullet_size = 20
-bullets_list = []
+# ======================= Boss Settings =======================
+boss_spawned           = False
+boss_active            = False
+boss_position          = [0, -500, 0]
+boss_speed             = 0.15
+boss_arm_angle         = 0
+is_boss_attacking      = False
+boss_attack_speed      = 2
+boss_grab_toggle       = 0
+boss_max_health        = 5
+boss_health            = 5
+last_boss_attack_time  = 0
+boss_attack_cooldown   = 2000  # milliseconds
+BOSS_BASE_HP           = 10.0
+BOSS_HP_BONUS          = 5.0
 
-# Boss-related variables
-boss_spawned = False
-boss_position = [0, -500, 0]
-boss_grab_toggle = 0
-boss_max_health = 5
-boss_health     = 5
-boss_speed = 0.15
+# ======================= Loot System =======================
+loot_list        = []
+last_loot_spawn  = 0
+next_loot_delay  = 0
+spawned_a_loot   = False
+
+LOOT_TYPES      = ['life', 'double', 'shield']
+LOOT_VIS_TIME   = 10_000  # ms
+LOOT_SPAWN_MIN  = 5_000   # ms
+LOOT_SPAWN_MAX  = 15_000  # ms
+
+# ======================= Power-Ups / Effects =======================
+double_active   = False
+double_ends     = 0
+shield_active   = False
+shield_ends     = 0
+shield_hits     = 0
+
+DOUBLE_DURATION = 15_000  # ms
+SHIELD_DURATION = 15_000  # ms
+SHIELD_HITS     = 1
 
 #---------------------------------------------------- Game Space  ---------------------------------------------------
 
@@ -189,7 +190,7 @@ def draw_player():
     glTranslatef(*player_pos)
     glRotatef(player_angle, 0, 0, 1)  # Rotate around z-axis
     glScalef(2.0, 2.0, 2.0)
-    if mode_over:
+    if game_over:
         glRotatef(-90, 1, 0, 0)
 
     # Right Leg (Pants)
@@ -230,11 +231,14 @@ def draw_player():
     gun_point = [20, 0, 70]
 
 def light_attack():
-    global is_light_attacking, right_arm_angle
+    global is_light_attacking, right_arm_angle, boss_hit_this_swing, last_melee_time, melee_cooldown, game_over
     
-    if not mode_over and not is_light_attacking:
+    now = time.time() * 1000
+    if not game_over and not is_light_attacking and (now - last_melee_time) >= melee_cooldown:
         is_light_attacking = True
         right_arm_angle = 0
+        boss_hit_this_swing = False
+        last_melee_time = now
 
 def draw_bullet(bullet):
     glPushMatrix()
@@ -245,6 +249,13 @@ def draw_bullet(bullet):
     glPopMatrix()
 
 def fire_bullet():
+    global last_bullet_time
+    
+    now = time.time() * 1000
+    if (now - last_bullet_time) < bullet_cooldown:
+        return
+    last_bullet_time = now
+    
     angle_rad = convert_angle_to_radians(player_angle - 90)[0]
     
     offset_x = gun_point[0] * math.cos(angle_rad) - gun_point[1] * math.sin(angle_rad)
@@ -304,7 +315,7 @@ def draw_loots():
 def spawn_loot():
     # Create one loot at a random grid position.
     
-    now = glutGet(GLUT_ELAPSED_TIME)
+    now = time.time() * 1000
     t = random.choice(LOOT_TYPES)
     x = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
     y = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
@@ -320,7 +331,7 @@ def update_loots():
     # Rotate, expire, and check pickup collisions.
     global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits
 
-    now = glutGet(GLUT_ELAPSED_TIME)
+    now = time.time() * 1000
 
     #  -- spawn new loot?
     if now - (last_loot_spawn+ 5000) >= next_loot_delay:
@@ -450,24 +461,24 @@ def draw_enemy(x, y, z):
 def spawn_enemy(num=enemy_count):
     global enemy_list
     margin = 100  # Safety margin from arena edges
+    safe_distance = 200  # Safety distance from player
 
     while len(enemy_list) < num:
         x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
         y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
 
-        while abs(x) < player_pos[0] + 200:
-            x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
-        while abs(y) < player_pos[1] + 200:
-            y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
+        distance = dist([x, y], player_pos)
+        while distance < safe_distance:
+            continue
         
         enemy_list.append([x, y, 0])
 
 def move_enemy():
     global enemy_list, enemy_speed, game_over, player_life
-    global mode_over, shield_active, shield_hits
+    global game_over, shield_active, shield_hits
     
     for enemy in enemy_list:
-        if mode_over:
+        if game_over:
             break
         
         # Calculate angle to player
@@ -497,6 +508,7 @@ def move_enemy():
 def draw_boss(x, y, z):
     glPushMatrix()
     glTranslatef(x, y, z)
+    glRotatef(boss_angle - 90, 0, 0, 1)
     glScalef(3.5,3.5, 3.5)
 
     quad = gluNewQuadric()
@@ -606,7 +618,7 @@ def draw_boss(x, y, z):
     glPopMatrix()
 
 def move_boss():
-    global boss_position, boss_health, boss_active, kills_since_boss, boss_spawned, boss_speed, boss_angle, game_over, player_pos, shield_active, shield_hits, player_life, mode_over, is_boss_attacking, boss_arm_angle, enemy_count, level
+    global boss_position, boss_health, boss_active, kills_since_boss, boss_spawned, boss_speed, boss_angle, game_over, player_pos, shield_active, shield_hits, player_life, game_over, is_boss_attacking, boss_arm_angle, enemy_count, level
     
     if boss_spawned:
         # Move boss towards player
@@ -632,30 +644,26 @@ def move_boss():
                     game_over = True
                 player_pos[0] += 300 * math.cos(angle_rad)
                 player_pos[1] += 300 * math.sin(angle_rad)
+                
+                # Clamp player position within bounds
+                player_pos[0] = max(-GRID_LENGTH, min(player_pos[0], GRID_LENGTH + 100))
+                player_pos[1] = max(-GRID_LENGTH, min(player_pos[1], GRID_LENGTH + 100))
         
         # Check if boss is out of bounds
         if (boss_position[0] > GRID_LENGTH + 100 or boss_position[0] < -GRID_LENGTH or
             boss_position[1] > GRID_LENGTH + 100 or boss_position[1] < -GRID_LENGTH):
             boss_position[0] = max(-GRID_LENGTH, min(boss_position[0], GRID_LENGTH + 100))
             boss_position[1] = max(-GRID_LENGTH, min(boss_position[1], GRID_LENGTH + 100))
-        # Check if boss is dead
-        if boss_health <= 0:
-            boss_active = False
-            kills_since_boss += 1
-            boss_spawned = False
-            boss_health = boss_max_health
-            boss_position = [0, -500, 0]
-            enemy_count += 1
-            level += 1
-            spawn_enemy(enemy_count)
         
 def boss_attack():
-    global is_boss_attacking, boss_arm_angle, boss_attack_time, boss_attack_duration
+    global is_boss_attacking, boss_arm_angle, boss_attack_time, boss_attack_duration, last_boss_attack_time
     
-    if not mode_over and not is_boss_attacking:
+    now = time.time() * 1000
+    if not game_over and not is_boss_attacking and (now - last_boss_attack_time) >= boss_attack_cooldown:
         is_boss_attacking = True
         boss_arm_angle = 0
         boss_attack_time = time.time()
+        last_boss_attack_time = now
 
 #---------------------------------------------------- Moves ---------------------------------------------------  
 def hit_enemy_bullet(bullets, enemies):
@@ -676,9 +684,6 @@ def hit_enemy_bullet(bullets, enemies):
                 boss_health -= 1
                 bullets.remove(bullet)
                 break
-    
-    if len(enemies) == 0:
-        boss_spawned = True
 
 def in_front(bx, by, bz):
     dx = player_pos[0] - bx
@@ -690,28 +695,28 @@ def in_front(bx, by, bz):
     return abs(diff) <= 90
 
 def hit_enemy_melee(enemies):
-    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, is_light_attacking, boss_spawned, boss_position, level, enemy_count, boss_max_health
+    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, is_light_attacking, boss_spawned, boss_position, level, enemy_count, boss_max_health, boss_hit_this_swing
     
     # Only check once per swing
     if not is_light_attacking or (right_arm_angle > -90):
         return
+    
     # Hit frame reached: check all enemiesd
     for enemy in enemies[:]:
         if dist(player_pos, enemy) <= 150 and in_front(*enemy):
             game_score += 1
             enemies.remove(enemy)
     
-    if boss_spawned:
+    if boss_spawned and boss_active and not boss_hit_this_swing:
         if dist(player_pos, boss_position) <= 150 and in_front(*boss_position):
             boss_health -= 1
+            boss_hit_this_swing = True
     
-    if len(enemies) == 0:
-        boss_spawned = True
 
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
 def mouse_listener(button, state, x, y):
-    global mode_over, mode_first_person, player_turn_speed, mode_cheat_vision
+    global game_over, mode_first_person, player_turn_speed, mode_cheat_vision
     
     if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
         light_attack()
@@ -722,13 +727,13 @@ def mouse_listener(button, state, x, y):
     
 def keyboard_listener(key, a, b):
     global player_angle, player_speed, player_turn_speed, player_pos, gun_angle, gun_bullet_speed, gun_bullets, gun_missed_bullets
-    global mode_over, player_life, game_score, enemy_list, mode_cheat, mode_cheat_vision, mode_first_person, enemy_size
+    global game_over, player_life, game_score, enemy_list, mode_cheat, mode_cheat_vision, mode_first_person, enemy_size
     
     x = player_pos[0]
     y = player_pos[1]
     z = player_pos[2]
     
-    if not mode_over:
+    if not game_over:
         if key == b'w':
             # Player moves forward
             x -= player_speed * math.sin(math.radians(-player_angle))
@@ -771,7 +776,7 @@ def keyboard_listener(key, a, b):
     player_pos = [x, y, z]
     
 def specialKeyListener(key, a, b):
-    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, mode_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
+    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
     
     mods = glutGetModifiers()
     
@@ -799,7 +804,7 @@ def specialKeyListener(key, a, b):
 #---------------------------------------------------- System ---------------------------------------------------
 
 def show_screen():
-    global mode_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position
+    global game_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -850,7 +855,7 @@ def show_screen():
         draw_text(10, 770, f"Game is Over. Your score is {game_score}.")
         draw_text(10, 740, 'Press "R" to Restart the Game')
     
-    if not mode_over:
+    if not game_over:
         for enemy in enemy_list:
             draw_enemy(*enemy)
     
@@ -862,7 +867,7 @@ def show_screen():
     glutSwapBuffers()
 
 def idle():
-    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, update_loots
+    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health
     
     if not game_over:
         move_enemy()
@@ -872,9 +877,25 @@ def idle():
         
         hit_enemy_bullet(bullets_list, enemy_list)
         hit_enemy_melee(enemy_list)
-
+        
+        if len(enemy_list) == 0 and not boss_active:
+            boss_spawned = True
+            boss_active  = True             # prevents re-spawning
+            boss_health  = boss_max_health
+            boss_position = [0, -500, 0]    
+        
         if boss_spawned:
             move_boss()
+            
+            # Check if boss is dead
+            if boss_health <= 0:
+                boss_active = False
+                kills_since_boss += 1
+                boss_spawned = False
+                boss_health = boss_max_health
+                boss_position = [0, -500, 0]
+                level += 1
+                spawn_enemy(enemy_count + level * 2)
         
         if is_light_attacking:
             right_arm_angle -= light_attack_speed
@@ -903,7 +924,7 @@ def main():
     glEnable(GL_DEPTH_TEST)
     
     schedule_next_loot()  
-    last_loot_spawn = glutGet(GLUT_ELAPSED_TIME) 
+    last_loot_spawn = int(time.time() * 1000)
     spawn_enemy(enemy_count)
     
     glutDisplayFunc(show_screen)
