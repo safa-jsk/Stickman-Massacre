@@ -187,7 +187,7 @@ def convert_angle_to_radians(angle):
     return radian, cos_value, sin_value
 
 def dist(a, b):
-    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+    return math.sqrt(((a[0] - b[0])) ** 2 + ((a[1] - b[1])) ** 2)
 
 def draw_bomb(i_radius, o_radius):
     glPushMatrix()
@@ -262,10 +262,21 @@ def light_attack():
 
 def draw_bullet(bullet):
     glPushMatrix()
-    glTranslatef(bullet['pos'][0]-40, bullet['pos'][1], bullet['pos'][2] + 95)
-    glRotatef(90, 1, 0, 0)  # Rotate around z-axis
-    glColor3f(1, 0, 0)
-    glutSolidCube(bullet_size)
+    if double_active:
+        glColor3f(243/255, 135/255, 41/255)
+    else:
+        glColor3f(41/255, 236/255, 243/255)
+    if boss_active:
+        glColor3f(1.0, 1.0, 1.0)
+
+    glTranslatef(bullet['pos'][0]-40, bullet['pos'][1], bullet['pos'][2]+ 95)
+    glRotatef(bullet['angle'], 0, 0, 1)
+    glBegin(GL_LINES)
+    glVertex3f(0.0, 0.0, 0.0)    # Start point of the laser
+    glVertex3f(100.0, 0.0, 0.0)  # End point of the laser 
+
+    glEnd()
+
     glPopMatrix()
 
 def fire_bullet():
