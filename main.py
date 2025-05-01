@@ -25,6 +25,7 @@ game_score       = 0
 bullets_missed   = 0
 level            = 1
 kills_since_boss = 0
+is_paused = False
 shift_count      = 0
 
 # ======================= Player State =======================
@@ -45,7 +46,7 @@ melee_cooldown      = 600  # milliseconds
 boss_hit_this_swing = False
 
 # ======================= Player Ranged (Gun) =======================
-bullet_speed     = 2
+bullet_speed     = 10
 bullet_size      = 20
 bullets_list     = []
 last_bullet_time = 0
@@ -53,7 +54,7 @@ bullet_cooldown  = 1000  # milliseconds
 
 # ======================= Enemy Settings =======================
 enemy_list     = []
-enemy_speed    = 0.1
+enemy_speed    = 0.25
 enemy_count    = 5
 
 # ======================= Boss Settings =======================
@@ -809,6 +810,14 @@ def keyboard_listener(key, a, b):
     if key == b'r':
         restart_game()
 
+    # Toggle pause/resume
+    if key == b' ':
+        global is_paused
+        is_paused = not is_paused
+        print("Game Paused" if is_paused else "Game Resumed")
+        return
+
+
 def specialKeyListener(key, a, b):
     global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
     
@@ -976,6 +985,9 @@ def show_screen():
 
 def idle():
     global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle
+    if is_paused:
+           glutPostRedisplay()
+           return
     
     if not game_over:
         move_enemy()
