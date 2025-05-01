@@ -25,7 +25,7 @@ game_score       = 0
 bullets_missed   = 0
 level            = 1
 kills_since_boss = 0
-is_paused = False
+is_paused        = False
 shift_count      = 0
 
 # ======================= Player State =======================
@@ -773,84 +773,95 @@ def hit_enemy_melee(enemies):
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
 def mouse_listener(button, state, x, y):
-    global game_over, mode_first_person, player_turn_speed, mode_cheat_vision
+    global game_over, mode_first_person, player_turn_speed, mode_cheat_vision, is_paused
     
-    if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
-        light_attack()
-    
-    if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
-        # strong_attack()
-        fire_bullet()
+    if is_paused:
+        return
+    else:
+        if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+            light_attack()
+        
+        if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
+            # strong_attack()
+            fire_bullet()
     
 def keyboard_listener(key, a, b):
-    global player_angle, player_speed, player_turn_speed, player_pos
+    global player_angle, player_speed, player_turn_speed, player_pos, is_paused
     global game_over, player_life, game_score, enemy_list
     global mode_cheat, mode_cheat_vision, mode_first_person
     global enemy_size
 
     x, y, z = player_pos
-    if not game_over:
-        if key == b'w':
-            # Move forward
-            x -= player_speed * math.sin(math.radians(-player_angle))
-            y -= player_speed * math.cos(math.radians(player_angle))
-        elif key == b's':
-            # Move backward
-            x += player_speed * math.sin(math.radians(-player_angle))
-            y += player_speed * math.cos(math.radians(player_angle))
-        elif key == b'a':
-            # Turn left
-            player_angle += player_turn_speed
-        elif key == b'd':
-            # Turn right
-            player_angle -= player_turn_speed
-
-    # Clamp player within arena
-    x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
-    y = max(-GRID_LENGTH, min(y, GRID_LENGTH + 100))
-
-    player_pos = [x, y, z]
-
-    # Trigger boss attack manually
-    if key == b'p':
-        boss_attack()
-
-    # Restart the game anytime
-    if key == b'r':
-        restart_game()
-
-    # Toggle pause/resume
+    #--------------------Pause game-------------------------
     if key == b' ':
-        global is_paused
         is_paused = not is_paused
         print("Game Paused" if is_paused else "Game Resumed")
         return
+    
+    if is_paused:
+        return
+    else:  #----------------------- Game is not paused--------------------------------
+        if not game_over:
+            if key == b'w':
+                # Move forward
+                x -= player_speed * math.sin(math.radians(-player_angle))
+                y -= player_speed * math.cos(math.radians(player_angle))
+            elif key == b's':
+                # Move backward
+                x += player_speed * math.sin(math.radians(-player_angle))
+                y += player_speed * math.cos(math.radians(player_angle))
+            elif key == b'a':
+                # Turn left
+                player_angle += player_turn_speed
+            elif key == b'd':
+                # Turn right
+                player_angle -= player_turn_speed
+
+        # Clamp player within arena
+        x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
+        y = max(-GRID_LENGTH, min(y, GRID_LENGTH + 100))
+
+        player_pos = [x, y, z]
+
+        # Trigger boss attack manually
+        if key == b'p':
+            boss_attack()
+
+        # Restart the game anytime
+        if key == b'r':
+            restart_game()
+
+        # Toggle pause/resume
+    
 
 
 def specialKeyListener(key, a, b):
-    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
+    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count, is_paused
     
     mods = glutGetModifiers()
     
-    if key == GLUT_KEY_UP:
-        camera_height -= 10
-        camera_radius -= 10
+    if is_paused:
+        return
+    else:
+        if key == GLUT_KEY_UP:
+            camera_height -= 10
+            camera_radius -= 10
 
-    if key == GLUT_KEY_DOWN:
-        camera_height += 10
-        camera_radius += 10
+        if key == GLUT_KEY_DOWN:
+            camera_height += 10
+            camera_radius += 10
 
-    if key == GLUT_KEY_LEFT:
-        camera_angle -= 5
+        if key == GLUT_KEY_LEFT:
+            camera_angle -= 5
 
-    if key == GLUT_KEY_RIGHT:
-        camera_angle += 5
-    
-    if mods & GLUT_ACTIVE_SHIFT:
-        if (shift_count % 2) == 0:
-            player_speed *= 2.0
-        else:
-            player_speed *= 0.5
+        if key == GLUT_KEY_RIGHT:
+            camera_angle += 5
+        
+        if mods & GLUT_ACTIVE_SHIFT:
+            if (shift_count % 2) == 0:
+                player_speed *= 2.0
+            else:
+                player_speed *= 0.5
         shift_count += 1
 
 #---------------------------------------------------- System ---------------------------------------------------
@@ -932,8 +943,12 @@ def show_screen():
     draw_arena()
     draw_player()
     
-    draw_loots()
-    spawned_loot = update_loots()
+    if is_paused:
+        draw_text(380, 770, "Game is Paused. Press SPACE to resume.")
+        return
+    else:
+        draw_loots()
+        spawned_loot = update_loots()
     
     if spawned_loot:
         spawned_a_loot = True
@@ -1036,13 +1051,13 @@ def show_screen():
     glutSwapBuffers()
 
 def idle():
-    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle
+    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle, is_paused
     if is_paused:
            glutPostRedisplay()
            return
     
-    if not game_over:
-        # move_enemy()
+    if not game_over and not is_paused:
+        move_enemy()
         move_bullet()
         
         update_loots() 
