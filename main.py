@@ -64,16 +64,28 @@ boss_spawned           = False
 boss_active            = False
 boss_position          = [0, -GRID_LENGTH + 100, 0]
 boss_speed             = 0.15
+
 boss_arm_angle         = 0
 is_boss_attacking      = False
 boss_attack_speed      = 2
 boss_grab_toggle       = 0
+boss_attack_cooldown   = 2000  # milliseconds
+
 boss_max_health        = 5
 boss_health            = 5
-last_boss_attack_time  = 0
-boss_attack_cooldown   = 2000  # milliseconds
 BOSS_BASE_HP           = 10.0
 BOSS_HP_BONUS          = 5.0
+
+boss_bomb_ready        = True
+boss_bomb_active       = False
+boss_bomb_start_time   = 0   
+boss_bomb_delay        = 1500
+boss_bomb_radius       = 500 
+boss_bomb_cooldown     = 5000
+boss_bomb_last_time    = 0
+boss_bomb_angle        = 0.0
+boss_bomb_rot_speed    = 60.0
+boss_bomb_prev_time    = 0
 
 # ======================= Loot System =======================
 loot_list        = []
@@ -178,6 +190,16 @@ def convert_angle_to_radians(angle):
 
 def dist(a, b):
     return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
+def draw_bomb(i_radius, o_radius):
+    glPushMatrix()
+    glTranslatef(boss_position[0], boss_position[1], 80)
+    glRotatef(-90, 1, 0, 0)
+    glRotatef(boss_bomb_angle, 0, 0, 1)
+    glRotatef(boss_bomb_angle, 0, 1, 0)
+    glColor3f(1.0, 0.2, 0.2)
+    glutSolidTorus(i_radius, o_radius, 16, 32)
+    glPopMatrix()
 
 #---------------------------------------------------- Player ---------------------------------------------------
 
@@ -289,16 +311,12 @@ def move_bullet():
 #---------------------------------------------------- Loots ---------------------------------------------------
 
 def draw_loots():
-    """Render each loot as a rotating shape."""
-    #print player_pos, loot_list postion
-    # if loot_list:
-    #     print("Player Position: ", player_pos)
-    #     print("Loots Position: ", loot_list)
+    # Render each loot as a rotating shape.
     for L in loot_list:
         glPushMatrix()
         glTranslatef(L['pos'][0], L['pos'][1], L['pos'][2])
         glRotatef(L['angle'], 0, 0, 1)  # Rotate around z-axis
-        glRotatef(L['angle'], 0,1,0)
+        glRotatef(L['angle'], 0, 1, 0)
 
         if L['type'] == 'life':
             glColor3f(0,1,0)
@@ -665,6 +683,35 @@ def boss_attack():
         boss_attack_time = time.time()
         last_boss_attack_time = now
 
+def boss_bomb():
+    global boss_active, boss_health, boss_spawned, kills_since_boss, enemy_list, enemy_count, level, boss_bomb_ready, boss_bomb_active, boss_bomb_start_time, boss_bomb_delay, boss_bomb_last_time, player_life, game_over
+    
+    now = time.time() * 1000
+    
+    if boss_active and boss_bomb_ready:
+        if random.random() < 1: 
+            boss_bomb_active     = True
+            boss_bomb_ready      = False
+            boss_bomb_start_time = now
+
+    if boss_bomb_active and (now - boss_bomb_start_time) >= boss_bomb_delay:
+
+        dx = player_pos[0] - boss_position[0]
+        dy = player_pos[1] - boss_position[1]
+        dist = math.sqrt(dx**2 + dy**2)
+
+        if dist <= boss_bomb_radius:
+            player_life -= 5  # or however much damage you want
+            if player_life <= 0:
+                game_over = True
+
+        # reset bomb state
+        boss_bomb_active    = False
+        boss_bomb_last_time = now
+    
+    if not boss_bomb_ready and not boss_bomb_active and (now - boss_bomb_last_time >= boss_bomb_cooldown):
+        boss_bomb_ready = True
+
 #---------------------------------------------------- Moves ---------------------------------------------------  
 
 def hit_enemy_bullet(bullets, enemies):
@@ -843,6 +890,17 @@ def show_screen():
         boss_percent   = int(bhp_ratio*100)
         draw_text(680, 770, f"Boss: [{bbar}] {boss_percent}%")
         
+        if boss_bomb_active:
+            now     = int(time.time() * 1000)
+            elapsed = now - boss_bomb_start_time
+            t       = min(elapsed / boss_bomb_delay, 1.0)
+
+            # pulse the torus radii
+            inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
+            outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
+
+            draw_bomb(inner_radius, outer_radius)              
+        
     if not game_over:
         draw_text(10, 770, f"HP: [{bar}] {player_percent}%")
         draw_text(10, 740, f"Score: {game_score}")
@@ -864,7 +922,7 @@ def show_screen():
     glutSwapBuffers()
 
 def idle():
-    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health
+    global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle
     
     if not game_over:
         move_enemy()
@@ -893,6 +951,14 @@ def idle():
                 boss_position = [0, -500, 0]
                 level += 1
                 spawn_enemy(enemy_count + level * 2)
+            
+            boss_bomb()
+            now = time.time() * 1000
+            dt = now - boss_bomb_prev_time
+            boss_bomb_prev_time - now
+            
+            boss_bomb_angle += boss_bomb_rot_speed * dt
+            
         
         if is_light_attacking:
             right_arm_angle -= light_attack_speed
@@ -917,7 +983,7 @@ def main():
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
     glutInitWindowPosition(0, 0)
-    glutCreateWindow(b"Bullet Frenzy 3D")
+    glutCreateWindow(b"Stickman Massacre")
     glEnable(GL_DEPTH_TEST)
     
     schedule_next_loot()  
