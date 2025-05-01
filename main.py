@@ -30,9 +30,6 @@ Bar_len  = 20
 # Game Progression
 level = 1
 kills_since_boss = 0
-boss_active = True
-boss_max_health = 5
-boss_health     = 5
 
 # Enemy-related variables
 KILLS_PER_BOSS  = 4
@@ -45,7 +42,7 @@ BOSS_HP_BONUS   = 5.0
 loot_list = []    # will hold dicts for each on‐screen pickup
 last_loot_spawn = 0
 next_loot_delay = 0
-spawed_a_loot = False
+spawned_a_loot = False
 
 # Effect state
 double_active     = False
@@ -93,8 +90,11 @@ bullets_list = []
 
 # Boss-related variables
 boss_spawned = False
-boss_position = [0, 0, 0]
+boss_position = [0, -500, 0]
 boss_grab_toggle = 0
+boss_max_health = 5
+boss_health     = 5
+boss_speed = 0.15
 
 #---------------------------------------------------- Game Space  ---------------------------------------------------
 
@@ -324,7 +324,7 @@ def update_loots():
 
     #  -- spawn new loot?
     if now - (last_loot_spawn+ 5000) >= next_loot_delay:
-        if spawed_a_loot:
+        if spawned_a_loot:
             pass
         else:
             spawn_loot()      # spawn a new loot
@@ -489,8 +489,8 @@ def move_enemy():
                 player_life -= 1
                 if player_life <= 0:
                     game_over = True
-            enemy_list.remove(enemy)  # Remove enemy on collision
             spawn_enemy(1)
+            enemy_list.remove(enemy)
     
 #---------------------------------------------------- Boss ---------------------------------------------------   
    
@@ -605,55 +605,80 @@ def draw_boss(x, y, z):
         glPopMatrix()
     glPopMatrix()
 
-def spawn_boss():
-    global boss_spawned, boss_position, boss_angle
+def move_boss():
+    global boss_position, boss_health, boss_active, kills_since_boss, boss_spawned, boss_speed, boss_angle, game_over, player_pos, shield_active, shield_hits, player_life, mode_over, is_boss_attacking, boss_arm_angle, enemy_count, level
     
-    if (game_score % enemy_count) == 0 and game_score > 0:
-
-        min_distance = 300
-        max_distance = 400
-        distance = random.randint(min_distance, max_distance)
-
-        angle_rad = math.radians(player_angle)
-
-        # Spawn in the direction player is facing
-        dx = -math.sin(angle_rad) * distance
-        dy = -math.cos(angle_rad) * distance
-
-        x = player_pos[0] + dx
-        y = player_pos[1] + dy
-
-        # Clamp within arena
-        x = max(-GRID_LENGTH + 150, min(GRID_LENGTH - 150, x))
-        y = max(-GRID_LENGTH + 150, min(GRID_LENGTH - 150, y))
-
-        boss_position = [x, y, 0]
-
-        # Boss should face the player → angle from boss to player
-        boss_angle = (math.degrees(math.atan2(player_pos[1] - y, player_pos[0] - x)) + 90) % 360
-
-        boss_spawned = True
-
+    if boss_spawned:
+        # Move boss towards player
+        dx = player_pos[0] - boss_position[0]
+        dy = player_pos[1] - boss_position[1]
+        
+        boss_angle = math.degrees(math.atan2(dy, dx)) 
+        angle_rad = math.atan2(dy, dx)
+        
+        boss_position[0] += boss_speed * math.cos(angle_rad)
+        boss_position[1] += boss_speed * math.sin(angle_rad)
+        
+        # Check for collision with player
+        if dist(player_pos, boss_position) < 50:
+            boss_attack()
+            if shield_active:
+                shield_hits -= 1
+                if shield_hits <= 0:
+                    shield_active = False
+            else:
+                player_life -= 2
+                if player_life <= 0:
+                    game_over = True
+                player_pos[0] += 300 * math.cos(angle_rad)
+                player_pos[1] += 300 * math.sin(angle_rad)
+        
+        # Check if boss is out of bounds
+        if (boss_position[0] > GRID_LENGTH + 100 or boss_position[0] < -GRID_LENGTH or
+            boss_position[1] > GRID_LENGTH + 100 or boss_position[1] < -GRID_LENGTH):
+            boss_position[0] = max(-GRID_LENGTH, min(boss_position[0], GRID_LENGTH + 100))
+            boss_position[1] = max(-GRID_LENGTH, min(boss_position[1], GRID_LENGTH + 100))
+        # Check if boss is dead
+        if boss_health <= 0:
+            boss_active = False
+            kills_since_boss += 1
+            boss_spawned = False
+            boss_health = boss_max_health
+            boss_position = [0, -500, 0]
+            enemy_count += 1
+            level += 1
+            spawn_enemy(enemy_count)
+        
 def boss_attack():
-    global is_boss_attacking, boss_arm_angle
+    global is_boss_attacking, boss_arm_angle, boss_attack_time, boss_attack_duration
     
     if not mode_over and not is_boss_attacking:
         is_boss_attacking = True
         boss_arm_angle = 0
+        boss_attack_time = time.time()
 
 #---------------------------------------------------- Moves ---------------------------------------------------  
 def hit_enemy_bullet(bullets, enemies):
-    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss
+    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, boss_spawned, enemy_count, boss_position, level, boss_max_health
     
     for bullet in bullets:
         for enemy in enemies:
-            if dist(bullet['pos'], enemy) <= 50:  # Assuming a hit if within 50 units
+            if dist(bullet['pos'], enemy) <= 50:  # Assuming a hit if within 50 
                 game_score += 1
                 bullets_missed += 1
                 bullets.remove(bullet)
                 enemies.remove(enemy)
 
                 break
+            
+        if boss_spawned:
+            if dist(bullet['pos'], boss_position) <= 50:
+                boss_health -= 1
+                bullets.remove(bullet)
+                break
+    
+    if len(enemies) == 0:
+        boss_spawned = True
 
 def in_front(bx, by, bz):
     dx = player_pos[0] - bx
@@ -665,7 +690,7 @@ def in_front(bx, by, bz):
     return abs(diff) <= 90
 
 def hit_enemy_melee(enemies):
-    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, is_light_attacking
+    global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, is_light_attacking, boss_spawned, boss_position, level, enemy_count, boss_max_health
     
     # Only check once per swing
     if not is_light_attacking or (right_arm_angle > -90):
@@ -675,11 +700,13 @@ def hit_enemy_melee(enemies):
         if dist(player_pos, enemy) <= 150 and in_front(*enemy):
             game_score += 1
             enemies.remove(enemy)
-
-def block_boss_attack():
-    global player_life, boss_health, boss_active, kills_since_boss, shield_active, shield_hits
     
-    pass
+    if boss_spawned:
+        if dist(player_pos, boss_position) <= 150 and in_front(*boss_position):
+            boss_health -= 1
+    
+    if len(enemies) == 0:
+        boss_spawned = True
 
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
@@ -741,9 +768,6 @@ def keyboard_listener(key, a, b):
     if key == b'p':
         boss_attack()
     
-    if key == b'x':
-        block_boss_attack()
-    
     player_pos = [x, y, z]
     
 def specialKeyListener(key, a, b):
@@ -775,7 +799,7 @@ def specialKeyListener(key, a, b):
 #---------------------------------------------------- System ---------------------------------------------------
 
 def show_screen():
-    global mode_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawed_a_loot,player_score, boss_spawned, boss_position
+    global mode_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -786,37 +810,37 @@ def show_screen():
     draw_player()
     
     draw_loots()
-    spawed_loot = update_loots()
+    spawned_loot = update_loots()
     
-    if spawed_loot:
-        spawed_a_loot = True
-        if spawed_loot[0]['type'] == 'double':
-            draw_text(380, 740, f"Loot Spawed : DOUBLE DAMAGE")
+    if spawned_loot:
+        spawned_a_loot = True
+        if spawned_loot[0]['type'] == 'double':
+            draw_text(380, 740, f"Loot spawned : DOUBLE DAMAGE")
         else:
-            draw_text(380, 740, f"Loot Spawed : {(spawed_loot[0]['type']).upper()}")
+            draw_text(380, 740, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
     else:
-        spawed_a_loot = False
-        # draw_text(380, 770, f"Loot Spawed : None")
+        spawned_a_loot = False
+        # draw_text(380, 770, f"Loot spawned : None")
     
     # ---- NEW: draw a text-based health bar ----
-    hp = max(0, min(player_life, Player_Max_Life))
+    hp       = max(0, min(player_life, Player_Max_Life))
     hp_ratio = hp / Player_Max_Life
     filled   = int(hp_ratio * Bar_len)
     empty    = Bar_len - filled
     bar      = '#' * filled + '-' * empty
-    percent  = int(hp_ratio * 100)
+    player_percent  = int(hp_ratio * 100)
     
     #Boss -----------------------------------------
-    if boss_active:
+    if boss_spawned:
     # clamp
         bhp_ratio = max(0.0, boss_health/boss_max_health)
         bfilled   = int(bhp_ratio * Bar_len)
         bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
-        percent   = int(bhp_ratio*100)
-        draw_text(680, 770, f"Boss: [{bbar}] {percent}%")
+        boss_percent   = int(bhp_ratio*100)
+        draw_text(680, 770, f"Boss: [{bbar}] {boss_percent}%")
         
     if not game_over:
-        draw_text(10, 770, f"HP: [{bar}] {percent}%")
+        draw_text(10, 770, f"HP: [{bar}] {player_percent}%")
         draw_text(10, 740, f"Score: {game_score}")
         draw_text(10, 710, f"Level: {level}")
         
@@ -825,7 +849,6 @@ def show_screen():
         # draw_text(400, 400, "GAME OVER! Press 'R' to Restart")
         draw_text(10, 770, f"Game is Over. Your score is {game_score}.")
         draw_text(10, 740, 'Press "R" to Restart the Game')
-
     
     if not mode_over:
         for enemy in enemy_list:
@@ -843,7 +866,16 @@ def idle():
     
     if not game_over:
         move_enemy()
-    
+        move_bullet()
+        
+        update_loots() 
+        
+        hit_enemy_bullet(bullets_list, enemy_list)
+        hit_enemy_melee(enemy_list)
+
+        if boss_spawned:
+            move_boss()
+        
         if is_light_attacking:
             right_arm_angle -= light_attack_speed
             if abs(right_arm_angle) >= 360:
@@ -859,11 +891,6 @@ def idle():
                 is_boss_attacking = False
                 boss_grab_toggle = 0
     
-    move_bullet()
-    update_loots() 
-    hit_enemy_bullet(bullets_list, enemy_list)
-    hit_enemy_melee(enemy_list)
-    
     glutPostRedisplay()
 
 def main():
@@ -878,7 +905,6 @@ def main():
     schedule_next_loot()  
     last_loot_spawn = glutGet(GLUT_ELAPSED_TIME) 
     spawn_enemy(enemy_count)
-    spawn_boss()  
     
     glutDisplayFunc(show_screen)
     glutIdleFunc(idle)
@@ -887,7 +913,6 @@ def main():
     glutMouseFunc(mouse_listener)
     
     # update_loots()
-    # glutPostRedisplay()
     
     glutMainLoop()
 

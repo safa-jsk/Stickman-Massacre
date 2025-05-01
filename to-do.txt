@@ -4,19 +4,17 @@ Player:
 
 Enemy:
 1. New Model                                                Srabon
-2. 4 enemies                                                Safa
-3. Health increases every round (+0.5)                      Safa
-4. Collision                                                Safa
+2. 5 enemies                                                Safa    Done
+3. Count increases every round                              Safa    Done
+4. Collision                                                Safa    Done
 
 Boss:
 1. New Model (1.2x-1.5x of Player)                          Srabon
-2. Can Attack (Strong Attack commented)                     Safa
-3. 2nd Attack (Player Light Attack Uppercut)                Safa
-4. Health bar                                               Saadat (Done)
+2. Can Attack (Strong Attack commented)                     Safa    Done
+3. Health bar                                               Saadat (Done)
 
 Inputs:
-1. Block (Tab Button)  [Time library]                       Safa
-2. Sprint (Shift)                                           Safa
+1. Sprint (Shift)                                           Safa    Done
 
 Gameplay:
 1. Random Loots (every 10s)                                 Saadat
