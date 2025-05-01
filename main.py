@@ -1017,7 +1017,7 @@ def show_screen():
         bfilled   = int(bhp_ratio * Bar_len)
         bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
         boss_percent   = int(bhp_ratio*100)
-        draw_text(680, 970, f"Boss: [{bbar}] {boss_percent}%")
+        draw_text(880, 970, f"Boss: [{bbar}] {boss_percent}%")
         
         if boss_bomb_active:
             now     = int(time.time() * 1000)
