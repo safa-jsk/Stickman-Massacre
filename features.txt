@@ -1,0 +1,28 @@
+Player:
+1. Melee Attack                                                         Safa
+2. Ranged Attack                                                        Saadat
+3. Sprint                                                               Safa
+
+Enemy:
+1. Increased damage and count according to level                        Srabon
+
+Boss:
+1. Melee Attack                                                         Safa
+2. Explosion Attack                                                     Safa
+3. Increased Health and Damage per level                                Srabon
+
+Gameplay:
+1. Health Bar                                                           Saadat
+2. Cheat Mode                                                           Safa
+    a. Infinite Health
+    b. One hit KO
+    c. No attack delay
+    d. Special button to mimic boss_bomb
+3. Boss spawns after clearing normal enemies in a level                 Srabon
+4. Pause and Restart                                                    Srabon
+5. Timed loot effects and display                                       Saadat
+
+Combat:                                                                 Saadat
+1. Double Damage
+2. Heal
+3. Shield

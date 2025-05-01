@@ -49,15 +49,12 @@ bullet_speed     = 2
 bullet_size      = 20
 bullets_list     = []
 last_bullet_time = 0
-bullet_cooldown  = 300  # milliseconds
+bullet_cooldown  = 1000  # milliseconds
 
 # ======================= Enemy Settings =======================
 enemy_list     = []
 enemy_speed    = 0.1
 enemy_count    = 5
-KILLS_PER_BOSS = 4
-ENEMY_BASE_HP  = 1.0
-ENEMY_HP_BONUS = 0.5
 
 # ======================= Boss Settings =======================
 boss_spawned           = False
@@ -70,11 +67,10 @@ is_boss_attacking      = False
 boss_attack_speed      = 2
 boss_grab_toggle       = 0
 boss_attack_cooldown   = 2000  # milliseconds
+last_boss_attack_time  = 0
 
-boss_max_health        = 5
-boss_health            = 5
-BOSS_BASE_HP           = 10.0
-BOSS_HP_BONUS          = 5.0
+boss_max_health        = 10
+boss_health            = 10
 
 boss_bomb_ready        = True
 boss_bomb_active       = False
@@ -486,8 +482,12 @@ def spawn_enemy(num=enemy_count):
         y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
 
         distance = dist([x, y], player_pos)
-        while distance < safe_distance:
-            continue
+        try: 
+            while distance < safe_distance:
+                continue
+        except:
+            x = -GRID_LENGTH + margin
+            y = -GRID_LENGTH + margin
         
         enemy_list.append([x, y, 0])
 
@@ -515,7 +515,7 @@ def move_enemy():
                 if shield_hits <= 0:
                     shield_active = False
             else:
-                player_life -= 1
+                player_life -= 1 * level * 0.5
                 if player_life <= 0:
                     game_over = True
             spawn_enemy(1)
@@ -689,7 +689,7 @@ def boss_bomb():
     now = time.time() * 1000
     
     if boss_active and boss_bomb_ready:
-        if random.random() < 1: 
+        if random.random() < 0.01:
             boss_bomb_active     = True
             boss_bomb_ready      = False
             boss_bomb_start_time = now
@@ -729,7 +729,7 @@ def hit_enemy_bullet(bullets, enemies):
             
         if boss_spawned:
             if dist(bullet['pos'], boss_position) <= 50:
-                boss_health -= 1
+                boss_health -= 1 * (1 if not double_active else 2)
                 bullets.remove(bullet)
                 break
 
@@ -757,9 +757,86 @@ def hit_enemy_melee(enemies):
     
     if boss_spawned and boss_active and not boss_hit_this_swing:
         if dist(player_pos, boss_position) <= 150 and in_front(*boss_position):
-            boss_health -= 1
+            boss_health -= 1 * (1 if not double_active else 2)
             boss_hit_this_swing = True
     
+#---------------------------------------------------- Inputs ---------------------------------------------------
+                   
+def mouse_listener(button, state, x, y):
+    global game_over, mode_first_person, player_turn_speed, mode_cheat_vision
+    
+    if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+        light_attack()
+    
+    if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
+        # strong_attack()
+        fire_bullet()
+    
+def keyboard_listener(key, a, b):
+    global player_angle, player_speed, player_turn_speed, player_pos
+    global game_over, player_life, game_score, enemy_list
+    global mode_cheat, mode_cheat_vision, mode_first_person
+    global enemy_size
+
+    x, y, z = player_pos
+    if not game_over:
+        if key == b'w':
+            # Move forward
+            x -= player_speed * math.sin(math.radians(-player_angle))
+            y -= player_speed * math.cos(math.radians(player_angle))
+        elif key == b's':
+            # Move backward
+            x += player_speed * math.sin(math.radians(-player_angle))
+            y += player_speed * math.cos(math.radians(player_angle))
+        elif key == b'a':
+            # Turn left
+            player_angle += player_turn_speed
+        elif key == b'd':
+            # Turn right
+            player_angle -= player_turn_speed
+
+    # Clamp player within arena
+    x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
+    y = max(-GRID_LENGTH, min(y, GRID_LENGTH + 100))
+
+    player_pos = [x, y, z]
+
+    # Trigger boss attack manually
+    if key == b'p':
+        boss_attack()
+
+    # Restart the game anytime
+    if key == b'r':
+        restart_game()
+
+def specialKeyListener(key, a, b):
+    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
+    
+    mods = glutGetModifiers()
+    
+    if key == GLUT_KEY_UP:
+        camera_height -= 10
+        camera_radius -= 10
+
+    if key == GLUT_KEY_DOWN:
+        camera_height += 10
+        camera_radius += 10
+
+    if key == GLUT_KEY_LEFT:
+        camera_angle -= 5
+
+    if key == GLUT_KEY_RIGHT:
+        camera_angle += 5
+    
+    if mods & GLUT_ACTIVE_SHIFT:
+        if (shift_count % 2) == 0:
+            player_speed *= 2.0
+        else:
+            player_speed *= 0.5
+        shift_count += 1
+
+#---------------------------------------------------- System ---------------------------------------------------
+
 def restart_game():
     global game_over, game_score, bullets_missed, level, kills_since_boss, shift_count
     global player_pos, player_angle, player_speed, player_turn_speed, player_life
@@ -825,84 +902,6 @@ def restart_game():
     shield_hits = 0
 
     print("Game Restarted.")
-
-#---------------------------------------------------- Inputs ---------------------------------------------------
-                   
-def mouse_listener(button, state, x, y):
-    global game_over, mode_first_person, player_turn_speed, mode_cheat_vision
-    
-    if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
-        light_attack()
-    
-    if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
-        # strong_attack()
-        fire_bullet()
-    
-def keyboard_listener(key, a, b):
-    global player_angle, player_speed, player_turn_speed, player_pos
-    global game_over, player_life, game_score, enemy_list
-    global mode_cheat, mode_cheat_vision, mode_first_person
-    global enemy_size
-
-    x, y, z = player_pos
-
-    if key == b'w':
-        # Move forward
-        x -= player_speed * math.sin(math.radians(-player_angle))
-        y -= player_speed * math.cos(math.radians(player_angle))
-    elif key == b's':
-        # Move backward
-        x += player_speed * math.sin(math.radians(-player_angle))
-        y += player_speed * math.cos(math.radians(player_angle))
-    elif key == b'a':
-        # Turn left
-        player_angle += player_turn_speed
-    elif key == b'd':
-        # Turn right
-        player_angle -= player_turn_speed
-
-    # Clamp player within arena
-    x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
-    y = max(-GRID_LENGTH, min(y, GRID_LENGTH + 100))
-
-    player_pos = [x, y, z]
-
-    # Trigger boss attack manually
-    if key == b'p':
-        boss_attack()
-
-    # Restart the game anytime
-    if key == b'r':
-        restart_game()
-
-    
-def specialKeyListener(key, a, b):
-    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count
-    
-    mods = glutGetModifiers()
-    
-    if key == GLUT_KEY_UP:
-        camera_height -= 10
-        camera_radius -= 10
-
-    if key == GLUT_KEY_DOWN:
-        camera_height += 10
-        camera_radius += 10
-
-    if key == GLUT_KEY_LEFT:
-        camera_angle -= 5
-
-    if key == GLUT_KEY_RIGHT:
-        camera_angle += 5
-    
-    if mods & GLUT_ACTIVE_SHIFT:
-        if (shift_count % 2) == 0:
-            player_speed *= 2.0
-        else:
-            player_speed *= 0.5
-        shift_count += 1
-
-#---------------------------------------------------- System ---------------------------------------------------
 
 def show_screen():
     global game_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position
@@ -1001,10 +1000,11 @@ def idle():
                 boss_active = False
                 kills_since_boss += 1
                 boss_spawned = False
+                boss_max_health += 2
                 boss_health = boss_max_health
                 boss_position = [0, -500, 0]
                 level += 1
-                spawn_enemy(enemy_count + level * 2)
+                spawn_enemy(enemy_count + level)
             
             boss_bomb()
             now = time.time() * 1000

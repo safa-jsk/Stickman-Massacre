@@ -1,31 +1,39 @@
 Player:
-1. Redraw Model                                             Srabon
-2. Health bar/percentage                                    Saadat (Done)
+1. Redraw Model                                             Srabon  Done
+2. Health bar/percentage                                    Saadat  Done
+3. Bullet Spawn Point Fix                                   Saadat
 
 Enemy:
-1. New Model                                                Srabon
+1. New Model                                                Srabon  Done
 2. 5 enemies                                                Safa    Done
 3. Count increases every round                              Safa    Done
 4. Collision                                                Safa    Done
+5. Enemy speed increase per level (max threshold)           Srabon
 
 Boss:
-1. New Model (1.2x-1.5x of Player)                          Srabon
+1. New Model (1.2x-1.5x of Player)                          Srabon  Done
 2. Can Attack (Strong Attack commented)                     Safa    Done
-3. Health bar                                               Saadat (Done)
+3. Health bar                                               Saadat  Done
+4. Boss speed increase per level (max threshold)            Srabon
+5. Boss damage increase per level                           Srabon
 
 Inputs:
 1. Sprint (Shift)                                           Safa    Done
 
 Gameplay:
-1. Random Loots (every 10s)                                 Saadat
+1. Random Loots (every 10s)                                 Saadat  Done
     a. Life
     b. Double Damage (10s)
     c. Shield   (10s)
-2. Arena re-colored                                         Srabon
+2. Arena re-colored                                         Srabon  Done
+3. Display Loot Effect                                      Saadat
+4. Pause Button and display                                 Srabon
 
-Cheat Mode:
+Cheat Mode:                                                 Safa
 1. Infinite Health
 2. One hit KO
+3. No attack delay
+4. Special button to mimic boss_bomb
 
 Loading Screen:
 1. PvE  (Normal gameplay)
