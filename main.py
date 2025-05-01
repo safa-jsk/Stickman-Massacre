@@ -8,13 +8,13 @@ import random
 import time
 
 # ======================= System Configuration =======================
-WINDOW_WIDTH  = 1000
-WINDOW_HEIGHT = 800
-GRID_LENGTH   = 600
+WINDOW_WIDTH  = 1200
+WINDOW_HEIGHT = 1000
+GRID_LENGTH   = 800
 fovY          = 120
 
 # ======================= Camera Settings =======================
-camera_pos    = [0, 600, 600]
+camera_pos    = [600, 600, 600]
 camera_angle  = 0
 camera_radius = 600
 camera_height = 600
@@ -62,7 +62,7 @@ ENEMY_HP_BONUS = 0.5
 # ======================= Boss Settings =======================
 boss_spawned           = False
 boss_active            = False
-boss_position          = [0, -500, 0]
+boss_position          = [0, -GRID_LENGTH + 100, 0]
 boss_speed             = 0.15
 boss_arm_angle         = 0
 is_boss_attacking      = False
@@ -461,7 +461,7 @@ def draw_enemy(x, y, z):
 def spawn_enemy(num=enemy_count):
     global enemy_list
     margin = 100  # Safety margin from arena edges
-    safe_distance = 200  # Safety distance from player
+    safe_distance = 100  # Safety distance from player
 
     while len(enemy_list) < num:
         x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
@@ -666,6 +666,7 @@ def boss_attack():
         last_boss_attack_time = now
 
 #---------------------------------------------------- Moves ---------------------------------------------------  
+
 def hit_enemy_bullet(bullets, enemies):
     global game_score, bullets_missed, enemy_list, boss_health, boss_active, kills_since_boss, boss_spawned, enemy_count, boss_position, level, boss_max_health
     
@@ -712,7 +713,6 @@ def hit_enemy_melee(enemies):
             boss_health -= 1
             boss_hit_this_swing = True
     
-
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
 def mouse_listener(button, state, x, y):
@@ -808,7 +808,7 @@ def show_screen():
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
-    glViewport(0, 0, 1000, 800)
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
     
     setup_camera()
     draw_arena()
@@ -827,7 +827,7 @@ def show_screen():
         spawned_a_loot = False
         # draw_text(380, 770, f"Loot spawned : None")
     
-    # ---- NEW: draw a text-based health bar ----
+    # Health Bar
     hp       = max(0, min(player_life, Player_Max_Life))
     hp_ratio = hp / Player_Max_Life
     filled   = int(hp_ratio * Bar_len)
@@ -835,9 +835,8 @@ def show_screen():
     bar      = '#' * filled + '-' * empty
     player_percent  = int(hp_ratio * 100)
     
-    #Boss -----------------------------------------
+    # Boss
     if boss_spawned:
-    # clamp
         bhp_ratio = max(0.0, boss_health/boss_max_health)
         bfilled   = int(bhp_ratio * Bar_len)
         bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
@@ -849,9 +848,7 @@ def show_screen():
         draw_text(10, 740, f"Score: {game_score}")
         draw_text(10, 710, f"Level: {level}")
         
-        # draw_text(10, 710, f"Bullets Missed: {bullets_missed}")
     if game_over:
-        # draw_text(400, 400, "GAME OVER! Press 'R' to Restart")
         draw_text(10, 770, f"Game is Over. Your score is {game_score}.")
         draw_text(10, 740, 'Press "R" to Restart the Game')
     
