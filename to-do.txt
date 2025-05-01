@@ -1,7 +1,7 @@
 Player:
 1. Redraw Model                                             Srabon  Done
 2. Health bar/percentage                                    Saadat  Done
-3. Bullet Spawn Point Fix                                   Saadat
+3. Bullet Spawn Point Fix                                   Saadat  Done
 
 Enemy:
 1. New Model                                                Srabon  Done
@@ -26,7 +26,8 @@ Gameplay:
     b. Double Damage (10s)
     c. Shield   (10s)
 2. Arena re-colored                                         Srabon  Done
-3. Display Loot Effect                                      Saadat
+3. Display Loot Effect                                      Saadat  Done
+    a. With duration of loot
 4. Pause Button and display                                 Srabon
 
 Cheat Mode:                                                 Safa

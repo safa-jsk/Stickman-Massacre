@@ -93,6 +93,7 @@ LOOT_TYPES      = ['life', 'double', 'shield']
 LOOT_VIS_TIME   = 10_000  # ms
 LOOT_SPAWN_MIN  = 5_000   # ms
 LOOT_SPAWN_MAX  = 15_000  # ms
+loot_picked     = [False, 0, [0,0,0], 0] # [picked, time, duration[life, double, shield], life is picked or not]
 
 # ======================= Power-Ups / Effects =======================
 double_active   = False
@@ -260,7 +261,7 @@ def light_attack():
 
 def draw_bullet(bullet):
     glPushMatrix()
-    glTranslatef(bullet['pos'][0], bullet['pos'][1], bullet['pos'][2] + 55)
+    glTranslatef(bullet['pos'][0]-40, bullet['pos'][1], bullet['pos'][2] + 95)
     glRotatef(90, 1, 0, 0)  # Rotate around z-axis
     glColor3f(1, 0, 0)
     glutSolidCube(bullet_size)
@@ -331,6 +332,7 @@ def spawn_loot():
     
     now = time.time() * 1000
     t = random.choice(LOOT_TYPES)
+    # t = LOOT_TYPES[0]  # For testing, always spawn life loot
     x = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
     y = random.uniform(-GRID_LENGTH+100, GRID_LENGTH-100)
     loot_list.append({
@@ -343,7 +345,7 @@ def spawn_loot():
 
 def update_loots():
     # Rotate, expire, and check pickup collisions.
-    global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits
+    global last_loot_spawn, double_active, shield_active, player_life, shield_hits, player_pos, loot_list, double_ends, shield_ends, shield_active, shield_hits, loot_picked
 
     now = time.time() * 1000
 
@@ -357,6 +359,7 @@ def update_loots():
             schedule_next_loot()     
 
     loots_to_pick = []
+    loot_picked[1] = now
     for L in loot_list:
         age = now - L['born']
         if age > LOOT_VIS_TIME:
@@ -365,19 +368,23 @@ def update_loots():
         # rotate 360° every 5s
         L['angle'] = (age / 5000.0) * 360 % 360
 
-        # collision?
+        # check if player is close enough to pick it up
         if dist(player_pos, L['pos']) < 40:
-            # pickup!
+            loot_picked[0] = True  
             if L['type'] == 'life':
                 heal = int(Player_Max_Life * 0.2)
                 player_life = min(Player_Max_Life, player_life + heal)
+                loot_picked[3] = 1
+                loot_picked[2][0] = loot_picked[1] + 5000
             elif L['type'] == 'double':
                 double_active = True
                 double_ends   = now + DOUBLE_DURATION
+                loot_picked[2][1] = loot_picked[1] + 15000
             elif L['type'] == 'shield':
                 shield_active = True
                 shield_ends   = now + SHIELD_DURATION
                 shield_hits   = SHIELD_HITS
+                loot_picked[2][2] = loot_picked[1] + 15000
             # remove that loot from the list
             loot_list.remove(L)
             continue  # remove from screen
@@ -388,8 +395,10 @@ def update_loots():
     # expire effects
     if double_active and now >= double_ends:
         double_active = False
+        loot_picked[0] = False
     if shield_active and now >= shield_ends:
         shield_active = False
+        loot_picked[0] = False
     return loots_to_pick
 
 def schedule_next_loot():
@@ -475,7 +484,7 @@ def draw_enemy(x, y, z):
 def spawn_enemy(num=enemy_count):
     global enemy_list
     margin = 100  # Safety margin from arena edges
-    safe_distance = 100  # Safety distance from player
+    safe_distance = 80  # Safety distance from player
 
     while len(enemy_list) < num:
         x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
@@ -522,7 +531,7 @@ def move_enemy():
             enemy_list.remove(enemy)
     
 #---------------------------------------------------- Boss ---------------------------------------------------   
-   
+
 def draw_boss(x, y, z):
     glPushMatrix()
     glTranslatef(x, y, z)
@@ -904,7 +913,7 @@ def restart_game():
     print("Game Restarted.")
 
 def show_screen():
-    global game_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position
+    global game_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position, loot_picked
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
@@ -920,9 +929,9 @@ def show_screen():
     if spawned_loot:
         spawned_a_loot = True
         if spawned_loot[0]['type'] == 'double':
-            draw_text(380, 740, f"Loot spawned : DOUBLE DAMAGE")
+            draw_text(480, 940, f"Loot spawned : DOUBLE DAMAGE")
         else:
-            draw_text(380, 740, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
+            draw_text(480, 940, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
     else:
         spawned_a_loot = False
         # draw_text(380, 770, f"Loot spawned : None")
@@ -935,13 +944,56 @@ def show_screen():
     bar      = '#' * filled + '-' * empty
     player_percent  = int(hp_ratio * 100)
     
+    # If loot is picked, show the message
+    if loot_picked[0]:
+        time_for_life = int(loot_picked[2][0] // 1000) - int(loot_picked[1] // 1000)
+        time_for_double = int(loot_picked[2][1] // 1000) - int(loot_picked[1] // 1000)
+        time_for_shield = int(loot_picked[2][2] // 1000) - int(loot_picked[1] // 1000)
+        compare_time_for_life = loot_picked[1] <= loot_picked[2][0]
+        
+        if double_active and shield_active:
+            smaller = int(loot_picked[2][1] // 1000) - int(loot_picked[1] // 1000) < int(loot_picked[2][2] // 1000) - int(loot_picked[1] // 1000)
+
+            
+            if smaller:
+                draw_text(10, 880, f"Loot Picked: DOUBLE DAMAGE + SHIELD {time_for_double}")
+                
+            else:
+                draw_text(10, 880, f"Loot Picked: SHIELD + DOUBLE DAMAGE {time_for_shield}")  
+                
+            if loot_picked[3] == 1:
+                if compare_time_for_life:
+                    draw_text(10, 850, f"Loot Picked: LIFE")
+                else:
+                    loot_picked[3] = 0
+        elif double_active:
+            draw_text(10, 880, f"Loot Picked: DOUBLE DAMAGE {time_for_double}")
+            if loot_picked[3] == 1:
+                if compare_time_for_life:
+                    draw_text(10, 850, f"Loot Picked: LIFE")
+                else:
+                    loot_picked[3] = 0
+        elif shield_active:
+            draw_text(10, 880, f"Loot Picked: SHIELD {time_for_shield}")
+            if loot_picked[3] == 1:
+                if compare_time_for_life:
+                    draw_text(10, 850, f"Loot Picked: LIFE")
+                else:
+                    loot_picked[3] = 0
+        # show life message for 5 seconds
+        elif loot_picked[3] == 1:
+            if compare_time_for_life:
+                draw_text(10, 880, f"Loot Picked: LIFE {time_for_life}")
+            else:
+                loot_picked[3] = 0
+            
     # Boss
     if boss_spawned:
         bhp_ratio = max(0.0, boss_health/boss_max_health)
         bfilled   = int(bhp_ratio * Bar_len)
         bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
         boss_percent   = int(bhp_ratio*100)
-        draw_text(680, 770, f"Boss: [{bbar}] {boss_percent}%")
+        draw_text(680, 970, f"Boss: [{bbar}] {boss_percent}%")
         
         if boss_bomb_active:
             now     = int(time.time() * 1000)
@@ -955,13 +1007,13 @@ def show_screen():
             draw_bomb(inner_radius, outer_radius)              
         
     if not game_over:
-        draw_text(10, 770, f"HP: [{bar}] {player_percent}%")
-        draw_text(10, 740, f"Score: {game_score}")
-        draw_text(10, 710, f"Level: {level}")
+        draw_text(10, 970, f"HP: [{bar}] {player_percent}%")
+        draw_text(10, 940, f"Score: {game_score}")
+        draw_text(10, 910, f"Level: {level}")
         
     if game_over:
-        draw_text(10, 770, f"Game is Over. Your score is {game_score}.")
-        draw_text(10, 740, 'Press "R" to Restart the Game')
+        draw_text(10, 970, f"Game is Over. Your score is {game_score}.")
+        draw_text(10, 940, 'Press "R" to Restart the Game')
     
     if not game_over:
         for enemy in enemy_list:
@@ -978,7 +1030,7 @@ def idle():
     global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle
     
     if not game_over:
-        move_enemy()
+        # move_enemy()
         move_bullet()
         
         update_loots() 
