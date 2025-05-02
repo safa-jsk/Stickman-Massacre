@@ -1135,14 +1135,21 @@ def idle():
             
             # Check if boss is dead
             if boss_health <= 0:
-                boss_active = False
-                kills_since_boss += 1
-                boss_spawned = False
-                boss_max_health += 2
-                boss_health = boss_max_health
-                boss_position = [0, -500, 0]
-                level += 1
-                spawn_enemy(enemy_count + level)
+                    boss_active = False
+                    kills_since_boss += 1
+                    boss_spawned = False
+                    boss_max_health += 2
+                    boss_health = boss_max_health
+                    boss_position = [0, -500, 0]
+                    level += 1
+                    
+                    # Increase enemy speed by 0.1, capped at 1.25
+                    global enemy_speed
+                    enemy_speed = min(enemy_speed + 0.1, 1.25)
+
+                    # Spawn more enemies for the next level
+                    spawn_enemy(enemy_count + level)
+
             
             boss_bomb()
             now = time.time() * 1000
