@@ -723,7 +723,9 @@ def boss_bomb():
         dist = math.sqrt(dx**2 + dy**2)
 
         if dist <= boss_bomb_radius:
-            player_life -= min(2 + level, 7)  # or however much damage you want
+            damage_percent = min(level * 20, 60)  # 20%, 40%, 60% max
+            damage = (damage_percent / 100) * Player_Max_Life
+            player_life -= damage
             if player_life <= 0:
                 game_over = True
 
