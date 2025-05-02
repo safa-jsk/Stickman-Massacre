@@ -108,7 +108,7 @@ shield_hits     = 0
 
 DOUBLE_DURATION = 15_000  # ms
 SHIELD_DURATION = 15_000  # ms
-SHIELD_HITS     = 1
+SHIELD_HITS     = 2
 
 # ======================= Damages =======================
 enemy_collision_damage = 1
@@ -420,7 +420,10 @@ def update_loots():
             elif L['type'] == 'shield':
                 shield_active = True
                 shield_ends   = now + SHIELD_DURATION
-                shield_hits   = SHIELD_HITS
+                if level > SHIELD_HITS:
+                    shield_hits   = level
+                else:
+                    shield_hits   = SHIELD_HITS
                 loot_picked[2][2] = loot_picked[1] + 15000
             # remove that loot from the list
             loot_list.remove(L)
