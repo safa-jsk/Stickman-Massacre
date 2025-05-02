@@ -177,6 +177,8 @@ def draw_start_screen():
 
 def draw_text(x, y, text, font = GLUT_BITMAP_HELVETICA_18):
     glColor3f(1, 1, 1)
+    if mode_cheat:
+        glColor3f(1, 0, 0)
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
@@ -1066,124 +1068,121 @@ def restart_game():
 def show_screen():
     global game_over, player_life, game_score, gun_missed_bullets, Player_Max_Life, Bar_len, bullets_missed, boss_active, boss_health, boss_max_health, spawned_a_loot,player_score, boss_spawned, boss_position, loot_picked
 
-    if in_start_screen:
-        draw_start_screen()
-        
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+    
+    setup_camera()
+    draw_arena()
+    draw_player()
+    
+    if is_paused:
+        draw_text(380, WINDOW_HEIGHT-300, "Game is Paused. Press SPACE to resume.")
+        return
     else:
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
-        glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
-        
-        setup_camera()
-        draw_arena()
-        draw_player()
-        
-        if is_paused:
-            draw_text(380, WINDOW_HEIGHT-300, "Game is Paused. Press SPACE to resume.")
-            return
+        draw_loots()
+        spawned_loot = update_loots()
+    
+    if spawned_loot:
+        spawned_a_loot = True
+        if spawned_loot[0]['type'] == 'double':
+            draw_text(480, WINDOW_HEIGHT-200, f"Loot spawned : DOUBLE DAMAGE")
         else:
-            draw_loots()
-            spawned_loot = update_loots()
+            draw_text(480, WINDOW_HEIGHT-200, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
+    else:
+        spawned_a_loot = False
+        # draw_text(380, 770, f"Loot spawned : None")
+    
+    if mode_cheat:
+        draw_text(880, WINDOW_HEIGHT-230, f"Cheat Mode ACTIVATED")
+    # If loot is picked, show the message
+    if loot_picked[0]:
+        time_for_life = int(loot_picked[2][0] // 1000) - int(loot_picked[1] // 1000)
+        time_for_double = int(loot_picked[2][1] // 1000) - int(loot_picked[1] // 1000)
+        time_for_shield = int(loot_picked[2][2] // 1000) - int(loot_picked[1] // 1000)
+        compare_time_for_life = loot_picked[1] <= loot_picked[2][0]
         
-        if spawned_loot:
-            spawned_a_loot = True
-            if spawned_loot[0]['type'] == 'double':
-                draw_text(480, WINDOW_HEIGHT-200, f"Loot spawned : DOUBLE DAMAGE")
-            else:
-                draw_text(480, WINDOW_HEIGHT-200, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
-        else:
-            spawned_a_loot = False
-            # draw_text(380, 770, f"Loot spawned : None")
-        
-        # Health Bar
-        hp       = max(0, min(player_life, Player_Max_Life))
-        hp_ratio = hp / Player_Max_Life
-        filled   = int(hp_ratio * Bar_len)
-        empty    = Bar_len - filled
-        bar      = '#' * filled + '-' * empty
-        player_percent  = int(hp_ratio * 100)
-        
-        # If loot is picked, show the message
-        if loot_picked[0]:
-            time_for_life = int(loot_picked[2][0] // 1000) - int(loot_picked[1] // 1000)
-            time_for_double = int(loot_picked[2][1] // 1000) - int(loot_picked[1] // 1000)
-            time_for_shield = int(loot_picked[2][2] // 1000) - int(loot_picked[1] // 1000)
-            compare_time_for_life = loot_picked[1] <= loot_picked[2][0]
-            
-            if double_active and shield_active:
-                smaller = int(loot_picked[2][1] // 1000) - int(loot_picked[1] // 1000) < int(loot_picked[2][2] // 1000) - int(loot_picked[1] // 1000)
+        if double_active and shield_active:
+            smaller = int(loot_picked[2][1] // 1000) - int(loot_picked[1] // 1000) < int(loot_picked[2][2] // 1000) - int(loot_picked[1] // 1000)
 
+            
+            if smaller:
+                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: DOUBLE DAMAGE + SHIELD {time_for_double}")
                 
-                if smaller:
-                    draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: DOUBLE DAMAGE + SHIELD {time_for_double}")
-                    
-                else:
-                    draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: SHIELD + DOUBLE DAMAGE {time_for_shield}")  
-                    
-                if loot_picked[3] == 1:
-                    if compare_time_for_life:
-                        draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
-                    else:
-                        loot_picked[3] = 0
-            elif double_active:
-                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: DOUBLE DAMAGE {time_for_double}")
-                if loot_picked[3] == 1:
-                    if compare_time_for_life:
-                        draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
-                    else:
-                        loot_picked[3] = 0
-            elif shield_active:
-                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: SHIELD {time_for_shield}")
-                if loot_picked[3] == 1:
-                    if compare_time_for_life:
-                        draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
-                    else:
-                        loot_picked[3] = 0
-            # show life message for 5 seconds
-            elif loot_picked[3] == 1:
+            else:
+                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: SHIELD + DOUBLE DAMAGE {time_for_shield}")  
+                
+            if loot_picked[3] == 1:
                 if compare_time_for_life:
-                    draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: LIFE {time_for_life}")
+                    draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
                 else:
                     loot_picked[3] = 0
-                
-        # Boss
-        if boss_spawned:
-            bhp_ratio = max(0.0, boss_health/boss_max_health)
-            bfilled   = int(bhp_ratio * Bar_len)
-            bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
-            boss_percent   = int(bhp_ratio*100)
-            draw_text(880, WINDOW_HEIGHT-200, f"Boss: [{bbar}] {boss_percent}%")
-            
-            if boss_bomb_active:
-                now     = int(time.time() * 1000)
-                elapsed = now - boss_bomb_start_time
-                t       = min(elapsed / boss_bomb_delay, 1.0)
+        elif double_active:
+            draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: DOUBLE DAMAGE {time_for_double}")
+            if loot_picked[3] == 1:
+                if compare_time_for_life:
+                    draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
+                else:
+                    loot_picked[3] = 0
+        elif shield_active:
+            draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: SHIELD {time_for_shield}")
+            if loot_picked[3] == 1:
+                if compare_time_for_life:
+                    draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
+                else:
+                    loot_picked[3] = 0
+        # show life message for 5 seconds
+        elif loot_picked[3] == 1:
+            if compare_time_for_life:
+                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: LIFE {time_for_life}")
+            else:
+                loot_picked[3] = 0
+    
+    # Health Bar
+    hp       = max(0, min(player_life, Player_Max_Life))
+    hp_ratio = hp / Player_Max_Life
+    filled   = int(hp_ratio * Bar_len)
+    empty    = Bar_len - filled
+    bar      = '#' * filled + '-' * empty
+    player_percent  = int(hp_ratio * 100)    
+    # Boss
+    if boss_spawned:
+        bhp_ratio = max(0.0, boss_health/boss_max_health)
+        bfilled   = int(bhp_ratio * Bar_len)
+        bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
+        boss_percent   = int(bhp_ratio*100)
+        draw_text(880, WINDOW_HEIGHT-200, f"Boss: [{bbar}] {boss_percent}%")
+        
+        if boss_bomb_active:
+            now     = int(time.time() * 1000)
+            elapsed = now - boss_bomb_start_time
+            t       = min(elapsed / boss_bomb_delay, 1.0)
 
                 # pulse the torus radii
-                inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
-                outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
+            inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
+            outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
 
-                draw_bomb(inner_radius, outer_radius)              
-            
-        if not game_over:
-            draw_text(10, WINDOW_HEIGHT-200, f"HP: [{bar}] {player_percent}%")
-            draw_text(10, WINDOW_HEIGHT-230, f"Score: {game_score}")
-            draw_text(10, WINDOW_HEIGHT-260, f"Level: {level}")
-            
-        if game_over:
-            draw_text(10, WINDOW_HEIGHT-200, f"Game is Over. Your score is {game_score}.")
-            draw_text(10, WINDOW_HEIGHT-230, 'Press "R" to Restart the Game')
+            draw_bomb(inner_radius, outer_radius)              
         
-        if not game_over:
-            for enemy in enemy_list:
-                draw_enemy(*enemy)
+    if not game_over:
+        draw_text(10, WINDOW_HEIGHT-200, f"HP: [{bar}] {player_percent}%")
+        draw_text(10, WINDOW_HEIGHT-230, f"Score: {game_score}")
+        draw_text(10, WINDOW_HEIGHT-260, f"Level: {level}")
         
-        for bullet in bullets_list:
-            draw_bullet(bullet)
-        if boss_spawned:
-            draw_boss(*boss_position)
+    if game_over:
+        draw_text(10, WINDOW_HEIGHT-200, f"Game is Over. Your score is {game_score}.")
+        draw_text(10, WINDOW_HEIGHT-230, 'Press "R" to Restart the Game')
+    
+    if not game_over:
+        for enemy in enemy_list:
+            draw_enemy(*enemy)
+    
+    for bullet in bullets_list:
+        draw_bullet(bullet)
+    if boss_spawned:
+        draw_boss(*boss_position)
 
-        glutSwapBuffers()
+    glutSwapBuffers()
 
 def idle():
     global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle, is_paused
