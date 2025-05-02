@@ -28,7 +28,7 @@ bullets_missed   = 0
 level            = 1
 kills_since_boss = 0
 is_paused        = False
-shift_count      = 0
+shift_flag       = False
 
 mode_cheat       = False
 
@@ -969,7 +969,7 @@ def keyboard_listener(key, a, b):
             restart_game()
     
 def specialKeyListener(key, a, b):
-    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count, is_paused
+    global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_flag, is_paused
     
     mods = glutGetModifiers()
     
@@ -991,11 +991,12 @@ def specialKeyListener(key, a, b):
             camera_angle += 5
         
         if mods & GLUT_ACTIVE_SHIFT:
-            if (shift_count % 2) == 0:
-                player_speed *= min(2.0 * level * 0.75, 30)
+            shift_flag = not shift_flag
+            if shift_flag:
+                player_speed = min(player_speed * 2.0, 30)
             else:
-                player_speed *= min(0.5 * level * 0.75, 30)
-        shift_count += 1
+                player_speed = min(player_speed * 0.5, 30)
+            
 
 #---------------------------------------------------- System ---------------------------------------------------
 
@@ -1227,6 +1228,7 @@ def idle():
                 boss_health = boss_max_health
                 boss_position = [0, -500, 0]
                 level += 1
+                player_speed += 2
                 
                 # Increase enemy speed by 0.1, capped at 1.25
                 global enemy_speed

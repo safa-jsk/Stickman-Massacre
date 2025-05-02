@@ -1,30 +1,22 @@
-Player:
-1. Melee Attack                                                         Safa
-2. Ranged Attack                                                        Saadat
-3. Sprint                                                               Safa
+Gameplay Features
 
-Enemy:
-1. Increased damage and count according to level                        Srabon
+22201101 - MD Saadat Rahman
+1. Player Ranged Attack
+2. Health Bar
+3. Loading Screen
+4. Loot System
+5. Game Text
 
-Boss:
-1. Melee Attack                                                         Safa
-2. Explosion Attack                                                     Safa
-3. Increased Health and Damage per level                                Srabon
-4. Model                                                                Srabon
+22201108 - Mohamamd Jabir Safa Khandoker
+1. Player Melee Attack
+2. Player Sprinting (Toggle)
+3. Boss Grab Attack
+4. Boss Bomb
+5. Cheat Mode and Nuke
 
-Gameplay:
-1. Health Bar                                                           Saadat
-2. Cheat Mode                                                           Safa
-    a. Infinite Health
-    b. One hit KO
-    c. No attack delay
-    d. Special button to mimic boss_bomb
-3. Boss spawns after clearing normal enemies in a level                 Srabon
-4. Pause and Restart                                                    Srabon
-5. Timed loot effects and display                                       Saadat
-6. Loading Screen                                                       Saadat
-
-Combat:                                                                 Saadat
-1. Double Damage
-2. Heal
-3. Shield
+24241208 - Md. Fahim Muntasir
+1. Increased Enemy Swarm and speed per level 
+2. Player, Enemy, Boss models
+3. Boss Spawning Logic
+4. Boss mechanics and increased difficulty
+5. Gameplay buttons
