@@ -445,7 +445,7 @@ def spawn_loot():
         'born': now,
         'angle': 0
     })
-    print("Loot Spawned: ", loot_list[0]['type'], loot_list[0]['pos'])
+    # print("Loot Spawned: ", loot_list[0]['type'], loot_list[0]['pos'])
 
 def update_loots():
     # Rotate, expire, and check pickup collisions.
@@ -953,6 +953,7 @@ def keyboard_listener(key, a, b):
         if mode_cheat:
             if key == b'x':
                 nuke()
+                print("Arena is NUKED!!!!!!")
 
         # Clamp player within arena
         x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
@@ -994,8 +995,10 @@ def specialKeyListener(key, a, b):
             shift_flag = not shift_flag
             if shift_flag:
                 player_speed = min(player_speed * 2.0, 30)
+                print("Player Speed Increased")
             else:
                 player_speed = min(player_speed * 0.5, 30)
+                print("Player Speed Normal")
             
 
 #---------------------------------------------------- System ---------------------------------------------------
