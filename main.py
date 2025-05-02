@@ -20,6 +20,8 @@ camera_radius = 600
 camera_height = 600
 
 # ======================= Game State =======================
+in_start_screen = True
+
 game_over        = False
 game_score       = 0
 bullets_missed   = 0
@@ -77,7 +79,7 @@ boss_health            = 10
 
 boss_bomb_ready        = True
 boss_bomb_active       = False
-boss_bomb_chance       = 0.01
+boss_bomb_chance       = 0.001
 boss_bomb_start_time   = 0   
 boss_bomb_delay        = 1500
 boss_bomb_radius       = 500 
@@ -118,6 +120,53 @@ bullet_power           = 1
 melee_power            = 1
 
 #---------------------------------------------------- Game Space  ---------------------------------------------------
+
+def draw_start_screen():
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()
+
+    # Set up same 3D camera as game
+    gluPerspective(45, 800 / 600, 0.1, 1000)
+    gluLookAt(0, 200, 700, 0, 200, 0, 0, 1, 0)  # adjust to match game camera
+
+    # Draw player model in 3D, on left
+    glPushMatrix()
+    glTranslatef(-200, 0, 0)  # move left
+    draw_player()
+    glPopMatrix()
+
+    # --- Now draw 2D overlay text ---
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, 800, 0, 600)  # 2D overlay
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+
+    # Disable depth to make text draw on top
+    glDisable(GL_DEPTH_TEST)
+
+    # Draw title
+    glColor3f(1, 0, 0)
+    glRasterPos2f(300, 500)
+    for ch in "STICKMAN MASSACRE":
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
+
+    # Draw subtitle
+    glColor3f(1, 1, 1)
+    glRasterPos2f(320, 400)
+    for ch in "Press Enter to Start":
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
+
+    # Restore state
+    glEnable(GL_DEPTH_TEST)
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+
+    glutSwapBuffers()
 
 def draw_text(x, y, text, font = GLUT_BITMAP_HELVETICA_18):
     glColor3f(1, 1, 1)
@@ -225,6 +274,15 @@ def cheat_mode():
         melee_cooldown         = 0
         
         # Player Nuke in keyboard_listener
+    else:
+        enemy_collision_damage = 1
+        boss_attack_damage     = 2
+        max_bomb_damage        = 60
+        bullet_power           = 1
+        melee_power            = 1
+        
+        bullet_cooldown        = 1000
+        melee_cooldown         = 600
 
 #---------------------------------------------------- Player ---------------------------------------------------
 
@@ -534,7 +592,6 @@ def spawn_enemy(num=enemy_count):
 
         if dist([x, y], player_pos) >= safe_distance:
             enemy_list.append([x, y, 0])
-
 
 def move_enemy():
     global enemy_list, enemy_speed, game_over, player_life, enemy_collision_damage
@@ -846,9 +903,15 @@ def keyboard_listener(key, a, b):
     global player_angle, player_speed, player_turn_speed, player_pos, is_paused
     global game_over, player_life, game_score, enemy_list
     global mode_cheat, mode_cheat_vision, mode_first_person
-    global enemy_size
+    global enemy_size, in_start_screen
 
     x, y, z = player_pos
+    
+    #--------------------Lauch game-------------------------
+    if in_start_screen:
+        if key == b'\r':
+            in_start_screen = False
+    
     #--------------------Pause game-------------------------
     if key == b' ':
         is_paused = not is_paused
@@ -874,11 +937,11 @@ def keyboard_listener(key, a, b):
                 # Turn right
                 player_angle -= player_turn_speed
                 
-            elif key == b'c':
+            if key == b'c':
                 mode_cheat = not mode_cheat
                 cheat_mode()
         
-        if cheat_mode:
+        if mode_cheat:
             if key == b'x':
                 nuke()
 
@@ -1086,9 +1149,9 @@ def show_screen():
             elapsed = now - boss_bomb_start_time
             t       = min(elapsed / boss_bomb_delay, 1.0)
 
-            # pulse the torus radii
-            inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
-            outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
+                # pulse the torus radii
+                inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
+                outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
 
             draw_bomb(inner_radius, outer_radius)              
         
@@ -1114,6 +1177,10 @@ def show_screen():
 
 def idle():
     global right_arm_angle, is_light_attacking, left_arm_angle, is_boss_attacking, boss_arm_angle, boss_grab_toggle, player_pos, player_angle, bullets_list, enemy_list, game_over, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, boss_spawned, boss_position, enemy_count, level, boss_max_health, boss_bomb_angle, is_paused
+    if in_start_screen:
+        glutPostRedisplay()
+        return
+    
     if is_paused:
            glutPostRedisplay()
            return
@@ -1138,14 +1205,21 @@ def idle():
             
             # Check if boss is dead
             if boss_health <= 0:
-                boss_active = False
-                kills_since_boss += 1
-                boss_spawned = False
-                boss_max_health += 2
-                boss_health = boss_max_health
-                boss_position = [0, -500, 0]
-                level += 1
-                spawn_enemy(enemy_count + level)
+                    boss_active = False
+                    kills_since_boss += 1
+                    boss_spawned = False
+                    boss_max_health += 2
+                    boss_health = boss_max_health
+                    boss_position = [0, -500, 0]
+                    level += 1
+                    
+                    # Increase enemy speed by 0.1, capped at 1.25
+                    global enemy_speed
+                    enemy_speed = min(enemy_speed + 0.1, 1.25)
+
+                    # Spawn more enemies for the next level
+                    spawn_enemy(enemy_count + level)
+
             
             boss_bomb()
             now = time.time() * 1000
