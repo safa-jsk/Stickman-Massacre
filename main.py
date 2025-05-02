@@ -530,15 +530,9 @@ def spawn_enemy(num=enemy_count):
         x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
         y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
 
-        distance = dist([x, y], player_pos)
-        try: 
-            while distance < safe_distance:
-                continue
-        except:
-            x = -GRID_LENGTH + margin
-            y = -GRID_LENGTH + margin
-        
-        enemy_list.append([x, y, 0])
+        if dist([x, y], player_pos) >= safe_distance:
+            enemy_list.append([x, y, 0])
+
 
 def move_enemy():
     global enemy_list, enemy_speed, game_over, player_life, enemy_collision_damage
