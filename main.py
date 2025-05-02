@@ -1150,8 +1150,8 @@ def show_screen():
             t       = min(elapsed / boss_bomb_delay, 1.0)
 
                 # pulse the torus radii
-                inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
-                outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
+            inner_radius = 50 + 10 * math.sin(t * math.pi * 3)
+            outer_radius = boss_bomb_radius * (0.8 + 0.05 * math.sin(t * math.pi * 2))
 
             draw_bomb(inner_radius, outer_radius)              
         
