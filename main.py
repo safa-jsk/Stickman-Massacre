@@ -121,6 +121,8 @@ melee_power            = 1
 
 def draw_text(x, y, text, font = GLUT_BITMAP_HELVETICA_18):
     glColor3f(1, 1, 1)
+    if mode_cheat:
+        glColor3f(1, 0, 0)
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
@@ -1019,14 +1021,8 @@ def show_screen():
         spawned_a_loot = False
         # draw_text(380, 770, f"Loot spawned : None")
     
-    # Health Bar
-    hp       = max(0, min(player_life, Player_Max_Life))
-    hp_ratio = hp / Player_Max_Life
-    filled   = int(hp_ratio * Bar_len)
-    empty    = Bar_len - filled
-    bar      = '#' * filled + '-' * empty
-    player_percent  = int(hp_ratio * 100)
-    
+    if mode_cheat:
+        draw_text(880, WINDOW_HEIGHT-230, f"Cheat Mode ACTIVATED")
     # If loot is picked, show the message
     if loot_picked[0]:
         time_for_life = int(loot_picked[2][0] // 1000) - int(loot_picked[1] // 1000)
@@ -1069,7 +1065,14 @@ def show_screen():
                 draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: LIFE {time_for_life}")
             else:
                 loot_picked[3] = 0
-            
+    
+    # Health Bar
+    hp       = max(0, min(player_life, Player_Max_Life))
+    hp_ratio = hp / Player_Max_Life
+    filled   = int(hp_ratio * Bar_len)
+    empty    = Bar_len - filled
+    bar      = '#' * filled + '-' * empty
+    player_percent  = int(hp_ratio * 100)    
     # Boss
     if boss_spawned:
         bhp_ratio = max(0.0, boss_health/boss_max_health)
