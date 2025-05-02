@@ -10,6 +10,7 @@ Boss:
 1. Melee Attack                                                         Safa
 2. Explosion Attack                                                     Safa
 3. Increased Health and Damage per level                                Srabon
+4. Model                                                                Srabon
 
 Gameplay:
 1. Health Bar                                                           Saadat
@@ -21,6 +22,7 @@ Gameplay:
 3. Boss spawns after clearing normal enemies in a level                 Srabon
 4. Pause and Restart                                                    Srabon
 5. Timed loot effects and display                                       Saadat
+6. Loading Screen                                                       Saadat
 
 Combat:                                                                 Saadat
 1. Double Damage

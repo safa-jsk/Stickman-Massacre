@@ -8,14 +8,14 @@ Enemy:
 2. 5 enemies                                                Safa    Done
 3. Count increases every round                              Safa    Done
 4. Collision                                                Safa    Done
-5. Enemy speed increase per level (max threshold)           Srabon
+5. Enemy speed increase per level (max threshold)           Srabon  Done
 
 Boss:
 1. New Model (1.2x-1.5x of Player)                          Srabon  Done
 2. Can Attack (Strong Attack commented)                     Safa    Done
 3. Health bar                                               Saadat  Done
-4. Boss speed increase per level (max threshold)            Srabon
-5. Boss damage increase per level                           Srabon
+4. Boss speed increase per level (max threshold)            Srabon  Done
+5. Boss damage increase per level                           Srabon  Done
 
 Inputs:
 1. Sprint (Shift)                                           Safa    Done
@@ -28,14 +28,13 @@ Gameplay:
 2. Arena re-colored                                         Srabon  Done
 3. Display Loot Effect                                      Saadat  Done
     a. With duration of loot
-4. Pause Button and display                                 Srabon
+4. Pause Button and display                                 Srabon  Done
 
-Cheat Mode:                                                 Safa
+Cheat Mode:                                                 Safa    Done
 1. Infinite Health
 2. One hit KO
 3. No attack delay
 4. Special button to mimic boss_bomb
 
 Loading Screen:
-1. PvE  (Normal gameplay)
-2. PvP
+1. PvE  (Normal gameplay)                                   Saadat  Done

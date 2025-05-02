@@ -65,7 +65,8 @@ enemy_count    = 5
 boss_spawned           = False
 boss_active            = False
 boss_position          = [0, -GRID_LENGTH + 100, 0]
-boss_speed             = 0.15
+boss_speed             = 0.5
+boss_angle             = 0
 
 boss_arm_angle         = 0
 is_boss_attacking      = False
@@ -125,42 +126,48 @@ def draw_start_screen():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
 
-    # Set up same 3D camera as game
+    # --- Use same 3D camera as your game ---
     gluPerspective(45, 800 / 600, 0.1, 1000)
-    gluLookAt(0, 200, 700, 0, 200, 0, 0, 1, 0)  # adjust to match game camera
+    gluLookAt(0, 200, 700, 0, 200, 0, 0, 1, 0)  # adjust to match gameplay camera
 
-    # Draw player model in 3D, on left
+    # --- Draw Player on Left ---
     glPushMatrix()
-    glTranslatef(-200, 0, 0)  # move left
+    glTranslatef(-200, 100, 0)  # move player left
+    glRotatef(-90, 1, 0, 0)  # face boss towards player
     draw_player()
     glPopMatrix()
 
-    # --- Now draw 2D overlay text ---
+    # --- Draw Boss on Right ---
+    glPushMatrix()
+    glTranslatef(50, 0, 0)  # move boss right
+    glRotatef(-90, 0, 1, 0)  # face boss towards player
+    glRotatef(-90, 1, 0, 0)  # face boss towards player
+    draw_boss(0, 100, -50)
+    glPopMatrix()
+
+    # --- Draw 2D Title and Prompt ---
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
     glLoadIdentity()
-    gluOrtho2D(0, 800, 0, 600)  # 2D overlay
+    gluOrtho2D(0, 800, 0, 600)
     glMatrixMode(GL_MODELVIEW)
     glPushMatrix()
     glLoadIdentity()
 
-    # Disable depth to make text draw on top
     glDisable(GL_DEPTH_TEST)
 
-    # Draw title
     glColor3f(1, 0, 0)
     glRasterPos2f(300, 500)
-    for ch in "STICKMAN MASSACRE":
+    for ch in "LAST ONE STANDING":
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
 
-    # Draw subtitle
     glColor3f(1, 1, 1)
     glRasterPos2f(320, 400)
     for ch in "Press Enter to Start":
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(ch))
 
-    # Restore state
     glEnable(GL_DEPTH_TEST)
+
     glPopMatrix()
     glMatrixMode(GL_PROJECTION)
     glPopMatrix()
@@ -313,7 +320,7 @@ def draw_player():
 
     # Head
     glTranslatef(0, 0, 40)          # At (0, 0, 110)
-    glColor3f(0.0, 0.0, 0.0)
+    glColor3f(0.2, 0.2, 0.2)
     gluSphere(gluNewQuadric(), 20, 10, 10)
 
     # Left Arm / Gun
@@ -624,6 +631,8 @@ def move_enemy():
 #---------------------------------------------------- Boss ---------------------------------------------------   
 
 def draw_boss(x, y, z):
+    global boss_angle, boss_arm_angle
+    
     glPushMatrix()
     glTranslatef(x, y, z)
     glRotatef(boss_angle - 90, 0, 0, 1)
@@ -746,8 +755,8 @@ def move_boss():
         boss_angle = math.degrees(math.atan2(dy, dx)) 
         angle_rad = math.atan2(dy, dx)
         
-        boss_position[0] += boss_speed * math.cos(angle_rad)
-        boss_position[1] += boss_speed * math.sin(angle_rad)
+        boss_position[0] += boss_speed * math.cos(angle_rad) * level * 0.25
+        boss_position[1] += boss_speed * math.sin(angle_rad) * level * 0.25
         
         # Check for collision with player
         if dist(player_pos, boss_position) < 50:
@@ -803,7 +812,7 @@ def boss_bomb():
         if dist <= boss_bomb_radius:
             damage_percent = min(level * 20, max_bomb_damage)  # 20%, 40%, 60% max
             damage = (damage_percent / 100) * Player_Max_Life
-            player_life -= damage
+            player_life -= damage * (1 - dist/boss_bomb_radius)
             if player_life <= 0:
                 game_over = True
 
@@ -981,9 +990,9 @@ def specialKeyListener(key, a, b):
         
         if mods & GLUT_ACTIVE_SHIFT:
             if (shift_count % 2) == 0:
-                player_speed *= 2.0
+                player_speed *= min(2.0 * level * 0.75, 30)
             else:
-                player_speed *= 0.5
+                player_speed *= min(0.5 * level * 0.75, 30)
         shift_count += 1
 
 #---------------------------------------------------- System ---------------------------------------------------
@@ -1253,7 +1262,7 @@ def main():
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
     glutInitWindowPosition(0, 0)
-    glutCreateWindow(b"Stickman Massacre")
+    glutCreateWindow(b"Last One Standing")
     glEnable(GL_DEPTH_TEST)
     
     schedule_next_loot()  
