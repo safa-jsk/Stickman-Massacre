@@ -28,6 +28,8 @@ kills_since_boss = 0
 is_paused        = False
 shift_count      = 0
 
+mode_cheat       = False
+
 # ======================= Player State =======================
 player_pos        = [0, 0, 0]
 player_angle      = 0
@@ -107,6 +109,13 @@ shield_hits     = 0
 DOUBLE_DURATION = 15_000  # ms
 SHIELD_DURATION = 15_000  # ms
 SHIELD_HITS     = 1
+
+# ======================= Damages =======================
+enemy_collision_damage = 1
+boss_attack_damage     = 2
+max_bomb_damage        = 7
+bullet_power           = 1
+melee_power            = 1
 
 #---------------------------------------------------- Game Space  ---------------------------------------------------
 
@@ -199,6 +208,21 @@ def draw_bomb(i_radius, o_radius):
     glColor3f(1.0, 0.2, 0.2)
     glutSolidTorus(i_radius, o_radius, 16, 32)
     glPopMatrix()
+
+def cheat_mode():
+    global mode_cheat, enemy_collision_damage, boss_attack_damage, max_bomb_damage, bullet_power, melee_power, bullet_cooldown, melee_cooldown
+    
+    if mode_cheat:
+        enemy_collision_damage = 0
+        boss_attack_damage     = 0
+        max_bomb_damage        = 0
+        bullet_power           = 100
+        melee_power            = 100
+        
+        bullet_cooldown        = 0
+        melee_cooldown         = 0
+        
+        # Player Nuke in keyboard_listener
 
 #---------------------------------------------------- Player ---------------------------------------------------
 
@@ -514,7 +538,7 @@ def spawn_enemy(num=enemy_count):
         enemy_list.append([x, y, 0])
 
 def move_enemy():
-    global enemy_list, enemy_speed, game_over, player_life
+    global enemy_list, enemy_speed, game_over, player_life, enemy_collision_damage
     global game_over, shield_active, shield_hits
     
     for enemy in enemy_list:
@@ -537,7 +561,7 @@ def move_enemy():
                 if shield_hits <= 0:
                     shield_active = False
             else:
-                player_life -= 1 * level * 0.5
+                player_life -= enemy_collision_damage * level * 0.5
                 if player_life <= 0:
                     game_over = True
             spawn_enemy(1)
@@ -679,7 +703,7 @@ def move_boss():
                 if shield_hits <= 0:
                     shield_active = False
             else:
-                player_life -= 2
+                player_life -= boss_attack_damage * level * 0.5
                 if player_life <= 0:
                     game_over = True
                 player_pos[0] += 300 * math.cos(angle_rad)
@@ -723,7 +747,7 @@ def boss_bomb():
         dist = math.sqrt(dx**2 + dy**2)
 
         if dist <= boss_bomb_radius:
-            player_life -= min(2 + level, 7)  # or however much damage you want
+            player_life -= min(2 + level, max_bomb_damage)  # or however much damage you want
             if player_life <= 0:
                 game_over = True
 
@@ -751,7 +775,7 @@ def hit_enemy_bullet(bullets, enemies):
             
         if boss_spawned:
             if dist(bullet['pos'], boss_position) <= 50:
-                boss_health -= 1 * (1 if not double_active else 2)
+                boss_health -= bullet_power * (1 if not double_active else 2)
                 bullets.remove(bullet)
                 break
 
@@ -779,7 +803,7 @@ def hit_enemy_melee(enemies):
     
     if boss_spawned and boss_active and not boss_hit_this_swing:
         if dist(player_pos, boss_position) <= 150 and in_front(*boss_position):
-            boss_health -= 1 * (1 if not double_active else 2)
+            boss_health -= melee_power * (1 if not double_active else 2)
             boss_hit_this_swing = True
     
 #---------------------------------------------------- Inputs ---------------------------------------------------
@@ -828,6 +852,15 @@ def keyboard_listener(key, a, b):
             elif key == b'd':
                 # Turn right
                 player_angle -= player_turn_speed
+                
+            elif key == b'c':
+                mode_cheat = not mode_cheat
+                cheat_mode()
+        
+        if cheat_mode:
+            if key == b'x':
+                # Give Player Boss_bomb
+                pass
 
         # Clamp player within arena
         x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
@@ -842,8 +875,6 @@ def keyboard_listener(key, a, b):
         # Restart the game anytime
         if key == b'r':
             restart_game()
-
-        # Toggle pause/resume
     
 def specialKeyListener(key, a, b):
     global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count, is_paused
