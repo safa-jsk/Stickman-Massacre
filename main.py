@@ -306,17 +306,17 @@ def draw_player():
         glRotatef(-90, 1, 0, 0)
 
     # Right Leg (Pants)
-    glTranslatef(15, 0, 0)      # At (15, 0, 0)
+    glTranslatef(0, 0, 0)      # At (0, 0, 0)
     glColor3f(0.0, 0.0, 0.8)    # Charcoal gray pants
     gluCylinder(gluNewQuadric(), 10, 10, 50, 10, 10)
 
     # Left Leg (Pants)
-    glTranslatef(-30, 0, 0)     # At (-15, 0, 0)
+    glTranslatef(30, 0, 0)     # At (-30, 0, 0)
     glColor3f(0.0, 0.0, 0.8)    # Charcoal gray pants
     gluCylinder(gluNewQuadric(), 10, 10, 50, 10, 10)
 
     # Body (Shirt)
-    glTranslatef(15, 0, 50 + 20)    # At (0, 0, 70)
+    glTranslatef(-15, 0, 50 + 20)    # At (0, 0, 70)
     glColor3f(0.2, 0.0, 0.0)        # Dark red shirt
     glutSolidCube(40)
 
@@ -325,22 +325,22 @@ def draw_player():
     glColor3f(0.2, 0.2, 0.2)
     gluSphere(gluNewQuadric(), 20, 10, 10)
 
-    # Left Arm / Gun
+    # Left Arm
     glTranslatef(20, 0, -30)        # At (20, 0, 80)
     glRotatef(90, 1, 0, 0)
     glColor3f(254 / 255, 223 / 255, 188 / 255)
     gluCylinder(gluNewQuadric(), 8, 8, 65, 10, 10)
 
-    # Right Arm
+    # Right Arm / Gun
     glRotatef(90, 1, 0, 0)
     glTranslatef(-40, 0, 0)
     glRotatef(-90 + right_arm_angle, 1, 0, 0)
-    glColor3f(254 / 255, 223 / 255, 188 / 255)
+    glColor3f(255 / 255, 215 / 255, 0 / 255)
     gluCylinder(gluNewQuadric(), 8, 8, 65, 10, 10)
 
     glPopMatrix()
     
-    gun_point = [20, 0, 70]
+    gun_point = [0, 0, 70]
 
 def light_attack():
     global is_light_attacking, right_arm_angle, boss_hit_this_swing, last_melee_time, melee_cooldown, game_over
@@ -361,7 +361,7 @@ def draw_bullet(bullet):
     if boss_active:
         glColor3f(1.0, 1.0, 1.0)
 
-    glTranslatef(bullet['pos'][0]-40, bullet['pos'][1], bullet['pos'][2]+ 95)
+    glTranslatef(bullet['pos'][0], bullet['pos'][1], bullet['pos'][2]+ 95)
     glRotatef(bullet['angle'], 0, 0, 1)
     glBegin(GL_LINES)
     glVertex3f(0.0, 0.0, 0.0)    # Start point of the laser
@@ -389,7 +389,7 @@ def fire_bullet():
     z = player_pos[2] + gun_point[2]
     
     e_bullet = {'pos': [x, y, z],
-                'angle': player_angle-90,
+                'angle': player_angle - 90,
                 'speed': bullet_speed}
     bullets_list.append(e_bullet)
     
