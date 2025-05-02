@@ -780,7 +780,10 @@ def hit_enemy_bullet(bullets, enemies):
             
         if boss_spawned:
             if dist(bullet['pos'], boss_position) <= 50:
-                boss_health -= bullet_power * (1 if not double_active else 2)
+                if level > 4 and double_active:
+                    boss_health -= bullet_power * (0.6 * level)
+                else:
+                    boss_health -= bullet_power * (1 if not double_active else 2)
                 bullets.remove(bullet)
                 break
 
