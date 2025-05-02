@@ -54,7 +54,7 @@ bullet_cooldown  = 1000  # milliseconds
 
 # ======================= Enemy Settings =======================
 enemy_list     = []
-enemy_speed    = 0.25
+enemy_speed    = 0.15
 enemy_count    = 5
 
 # ======================= Boss Settings =======================
@@ -75,6 +75,7 @@ boss_health            = 10
 
 boss_bomb_ready        = True
 boss_bomb_active       = False
+boss_bomb_chance       = 0.01
 boss_bomb_start_time   = 0   
 boss_bomb_delay        = 1500
 boss_bomb_radius       = 500 
@@ -710,7 +711,7 @@ def boss_bomb():
     now = time.time() * 1000
     
     if boss_active and boss_bomb_ready:
-        if random.random() < 0.01:
+        if random.random() < boss_bomb_chance:
             boss_bomb_active     = True
             boss_bomb_ready      = False
             boss_bomb_start_time = now
@@ -722,7 +723,7 @@ def boss_bomb():
         dist = math.sqrt(dx**2 + dy**2)
 
         if dist <= boss_bomb_radius:
-            player_life -= 5  # or however much damage you want
+            player_life -= min(2 + level, 7)  # or however much damage you want
             if player_life <= 0:
                 game_over = True
 
@@ -844,8 +845,6 @@ def keyboard_listener(key, a, b):
 
         # Toggle pause/resume
     
-
-
 def specialKeyListener(key, a, b):
     global camera_angle, camera_radius, camera_height, player_speed, player_turn_speed, player_pos, player_angle, game_over, game_over, enemy_list, bullets_missed, game_score, boss_health, boss_active, kills_since_boss, shift_count, is_paused
     
@@ -955,7 +954,7 @@ def show_screen():
     draw_player()
     
     if is_paused:
-        draw_text(380, 770, "Game is Paused. Press SPACE to resume.")
+        draw_text(380, WINDOW_HEIGHT-300, "Game is Paused. Press SPACE to resume.")
         return
     else:
         draw_loots()
@@ -964,9 +963,9 @@ def show_screen():
     if spawned_loot:
         spawned_a_loot = True
         if spawned_loot[0]['type'] == 'double':
-            draw_text(480, 940, f"Loot spawned : DOUBLE DAMAGE")
+            draw_text(480, WINDOW_HEIGHT-200, f"Loot spawned : DOUBLE DAMAGE")
         else:
-            draw_text(480, 940, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
+            draw_text(480, WINDOW_HEIGHT-200, f"Loot spawned : {(spawned_loot[0]['type']).upper()}")
     else:
         spawned_a_loot = False
         # draw_text(380, 770, f"Loot spawned : None")
@@ -991,34 +990,34 @@ def show_screen():
 
             
             if smaller:
-                draw_text(10, 880, f"Loot Picked: DOUBLE DAMAGE + SHIELD {time_for_double}")
+                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: DOUBLE DAMAGE + SHIELD {time_for_double}")
                 
             else:
-                draw_text(10, 880, f"Loot Picked: SHIELD + DOUBLE DAMAGE {time_for_shield}")  
+                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: SHIELD + DOUBLE DAMAGE {time_for_shield}")  
                 
             if loot_picked[3] == 1:
                 if compare_time_for_life:
-                    draw_text(10, 850, f"Loot Picked: LIFE")
+                    draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
                 else:
                     loot_picked[3] = 0
         elif double_active:
-            draw_text(10, 880, f"Loot Picked: DOUBLE DAMAGE {time_for_double}")
+            draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: DOUBLE DAMAGE {time_for_double}")
             if loot_picked[3] == 1:
                 if compare_time_for_life:
-                    draw_text(10, 850, f"Loot Picked: LIFE")
+                    draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
                 else:
                     loot_picked[3] = 0
         elif shield_active:
-            draw_text(10, 880, f"Loot Picked: SHIELD {time_for_shield}")
+            draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: SHIELD {time_for_shield}")
             if loot_picked[3] == 1:
                 if compare_time_for_life:
-                    draw_text(10, 850, f"Loot Picked: LIFE")
+                    draw_text(10, WINDOW_HEIGHT-330, f"Loot Picked: LIFE")
                 else:
                     loot_picked[3] = 0
         # show life message for 5 seconds
         elif loot_picked[3] == 1:
             if compare_time_for_life:
-                draw_text(10, 880, f"Loot Picked: LIFE {time_for_life}")
+                draw_text(10, WINDOW_HEIGHT-300, f"Loot Picked: LIFE {time_for_life}")
             else:
                 loot_picked[3] = 0
             
@@ -1028,7 +1027,7 @@ def show_screen():
         bfilled   = int(bhp_ratio * Bar_len)
         bbar      = '#' * bfilled + '-' * (Bar_len - bfilled)
         boss_percent   = int(bhp_ratio*100)
-        draw_text(880, 970, f"Boss: [{bbar}] {boss_percent}%")
+        draw_text(880, WINDOW_HEIGHT-200, f"Boss: [{bbar}] {boss_percent}%")
         
         if boss_bomb_active:
             now     = int(time.time() * 1000)
@@ -1042,13 +1041,13 @@ def show_screen():
             draw_bomb(inner_radius, outer_radius)              
         
     if not game_over:
-        draw_text(10, 970, f"HP: [{bar}] {player_percent}%")
-        draw_text(10, 940, f"Score: {game_score}")
-        draw_text(10, 910, f"Level: {level}")
+        draw_text(10, WINDOW_HEIGHT-200, f"HP: [{bar}] {player_percent}%")
+        draw_text(10, WINDOW_HEIGHT-230, f"Score: {game_score}")
+        draw_text(10, WINDOW_HEIGHT-260, f"Level: {level}")
         
     if game_over:
-        draw_text(10, 970, f"Game is Over. Your score is {game_score}.")
-        draw_text(10, 940, 'Press "R" to Restart the Game')
+        draw_text(10, WINDOW_HEIGHT-200, f"Game is Over. Your score is {game_score}.")
+        draw_text(10, WINDOW_HEIGHT-230, 'Press "R" to Restart the Game')
     
     if not game_over:
         for enemy in enemy_list:
