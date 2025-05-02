@@ -530,15 +530,9 @@ def spawn_enemy(num=enemy_count):
         x = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
         y = random.uniform(-GRID_LENGTH + margin, GRID_LENGTH - margin)
 
-        distance = dist([x, y], player_pos)
-        try: 
-            while distance < safe_distance:
-                continue
-        except:
-            x = -GRID_LENGTH + margin
-            y = -GRID_LENGTH + margin
-        
-        enemy_list.append([x, y, 0])
+        if dist([x, y], player_pos) >= safe_distance:
+            enemy_list.append([x, y, 0])
+
 
 def move_enemy():
     global enemy_list, enemy_speed, game_over, player_life, enemy_collision_damage
@@ -813,6 +807,23 @@ def hit_enemy_melee(enemies):
         if dist(player_pos, boss_position) <= 150 and in_front(*boss_position):
             boss_health -= melee_power * (1 if not double_active else 2)
             boss_hit_this_swing = True
+
+def nuke():
+    global enemy_list, bullets_list, loot_list, game_score, player_life, boss_health, boss_active, kills_since_boss, boss_spawned, enemy_count, level, boss_max_health
+    
+    # Clear all enemies and bullets
+    enemy_list.clear()
+    bullets_list.clear()
+    loot_list.clear()
+    
+    # Reset player life and score
+    player_life = Player_Max_Life
+    game_score += 1000 * level
+    
+    # Spawn a boss if not already spawned
+    if boss_active:
+        boss_health = 0
+        kills_since_boss += 1
     
 #---------------------------------------------------- Inputs ---------------------------------------------------
                    
@@ -867,8 +878,7 @@ def keyboard_listener(key, a, b):
         
         if cheat_mode:
             if key == b'x':
-                # Give Player Boss_bomb
-                pass
+                nuke()
 
         # Clamp player within arena
         x = max(-GRID_LENGTH, min(x, GRID_LENGTH + 100))
